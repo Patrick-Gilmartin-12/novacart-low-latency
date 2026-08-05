@@ -91,7 +91,7 @@ def test_bad_rows_quarantined(config: Config):
     make_products_db(config.landing_products_db, [GOOD_PRODUCT])
 
     run_one_date(DATE, config)
-    q_files = list((config.quarantine / "orders").glob("*.parquet"))
+    q_files = list((config.quarantine / "orders").glob("**/*.parquet"))
     assert q_files, "quarantine directory should contain at least one file"
     q_df = pd.concat([pd.read_parquet(f) for f in q_files])
     assert len(q_df) == 1
