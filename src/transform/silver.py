@@ -19,6 +19,7 @@ def _validate_df(
     quarantine_path: Path,
     logger: logging.Logger,
     source_name: str,
+    date_str: str | None = None,
 ) -> pd.DataFrame:
     """Validate each row with Pydantic. Good rows → Silver, bad rows → quarantine."""
     good, bad = [], []
@@ -28,15 +29,19 @@ def _validate_df(
             good.append(row)
         except (ValidationError, Exception) as exc:
             row_dict = row.to_dict()
-            row_dict["_quarantine_reason"] = str(exc)
+            row_dict["_error_reason"] = str(exc)
             row_dict["_quarantined_at"] = datetime.now(timezone.utc).isoformat()
             bad.append(row_dict)
 
     if bad:
-        q_dir = quarantine_path / source_name
+        if date_str:
+            q_dir = quarantine_path / source_name / f"dt={date_str}"
+            filename = f"{source_name}_bad.parquet"
+        else:
+            q_dir = quarantine_path / source_name
+            filename = f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S')}.parquet"
         q_dir.mkdir(parents=True, exist_ok=True)
-        ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
-        pd.DataFrame(bad).to_parquet(q_dir / f"{ts}.parquet", index=False)
+        pd.DataFrame(bad).to_parquet(q_dir / filename, index=False)
         log_event(logger, "WARNING", f"{source_name}_quarantined", count=len(bad))
 
     result = pd.DataFrame(good) if good else pd.DataFrame(columns=df.columns)
@@ -65,7 +70,7 @@ def build_silver_orders(
         return silver_dir / "orders" / f"date={date_str}" / "data.parquet"
 
     df = pd.read_parquet(src)
-    df = _validate_df(df, OrderRow, "order_id", quarantine_dir, logger, "orders")
+    df = _validate_df(df, OrderRow, "order_id", quarantine_dir, logger, "orders", date_str)
 
     out_dir = silver_dir / "orders" / f"date={date_str}"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -80,6 +85,7 @@ def build_silver_customers(
     silver_dir: Path,
     quarantine_dir: Path,
     logger: logging.Logger,
+    date_str: str | None = None,
 ) -> Path:
     src = bronze_dir / "customers" / "data.parquet"
     if not src.exists():
@@ -87,7 +93,7 @@ def build_silver_customers(
         return silver_dir / "customers" / "data.parquet"
 
     df = pd.read_parquet(src)
-    df = _validate_df(df, CustomerRow, "customer_id", quarantine_dir, logger, "customers")
+    df = _validate_df(df, CustomerRow, "customer_id", quarantine_dir, logger, "customers", date_str)
 
     out_dir = silver_dir / "customers"
     out_dir.mkdir(parents=True, exist_ok=True)
