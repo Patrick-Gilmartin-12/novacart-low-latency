@@ -10,6 +10,8 @@ import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
+import pandas as pd
+
 from src.utils.config import Config
 from src.utils.logging_setup import get_logger, log_event
 from src.utils.state import StateManager
@@ -26,6 +28,8 @@ from src.transform.gold import (
     build_dim_customer,
     build_fact_orders,
 )
+from src.utils.gold_health import run_gold_health_check
+from src.utils.schema_fingerprint import record_fingerprint
 
 
 def run_one_date(date_str: str, config: Config) -> dict:
@@ -55,6 +59,16 @@ def run_one_date(date_str: str, config: Config) -> dict:
         stage("ingest_products",  lambda: ingest_products(
             config.landing_products_db, config.bronze, state, logger))
 
+        # ── Schema fingerprints (post-Bronze) ─────────────────────────────────
+        for source, bronze_path in [
+            ("orders",    config.bronze / "orders" / f"date={date_str}" / "data.parquet"),
+            ("customers", config.bronze / "customers" / "data.parquet"),
+            ("products",  config.bronze / "products" / "data.parquet"),
+        ]:
+            if bronze_path.exists():
+                cols = pd.read_parquet(bronze_path).columns.tolist()
+                record_fingerprint(source, cols, config.state, logger)
+
         # ── Silver ────────────────────────────────────────────────────────────
         stage("silver_orders",    lambda: build_silver_orders(
             date_str, config.bronze, config.silver, config.quarantine, logger))
@@ -72,6 +86,10 @@ def run_one_date(date_str: str, config: Config) -> dict:
             logger))
         stage("fact_orders",   lambda: build_fact_orders(
             date_str, config.silver, config.gold, logger))
+
+        # ── Gold health check (post-Gold) ─────────────────────────────────────
+        stage("gold_health_check", lambda: run_gold_health_check(
+            date_str, config.gold, logger))
 
     except Exception as exc:
         status = "FAIL"
