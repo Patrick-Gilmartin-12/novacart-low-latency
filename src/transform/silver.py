@@ -43,7 +43,10 @@ def _validate_df(
             filename = f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S')}.parquet"
         q_dir.mkdir(parents=True, exist_ok=True)
         pd.DataFrame(bad).to_parquet(q_dir / filename, index=False)
-        log_event(logger, "WARNING", f"{source_name}_quarantined", count=len(bad))
+        total = len(good) + len(bad)
+        log_event(logger, "WARNING", f"{source_name}_quarantined",
+                  count=len(bad), total=total,
+                  rate=round(len(bad) / total, 4) if total else 0)
 
     result = pd.DataFrame(good) if good else pd.DataFrame(columns=df.columns)
 
@@ -90,6 +93,7 @@ def build_silver_customers(
     src = bronze_dir / "customers" / "data.parquet"
     if not src.exists():
         raise IngestionError(f"bronze customers not found: {src}")
+
     df = pd.read_parquet(src)
     df = _validate_df(df, CustomerRow, "customer_id", quarantine_dir, logger, "customers", date_str)
 
