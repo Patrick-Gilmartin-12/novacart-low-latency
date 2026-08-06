@@ -7,7 +7,7 @@ Usage:
 from __future__ import annotations
 import argparse
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -36,18 +36,18 @@ from src.utils.schema_fingerprint import record_fingerprint
 def run_one_date(date_str: str, config: Config) -> dict:
     logger = get_logger("novacart", config.logs)
     state = StateManager(config.state)
-    started_at = datetime.utcnow()
+    started_at = datetime.now(timezone.utc)
     stages: list[dict] = []
 
     def stage(name: str, fn):
-        t0 = datetime.utcnow()
+        t0 = datetime.now(timezone.utc)
         try:
             fn()
             stages.append({"stage": name, "status": "OK",
-                           "duration_sec": (datetime.utcnow() - t0).total_seconds()})
+                           "duration_sec": (datetime.now(timezone.utc) - t0).total_seconds()})
         except Exception as exc:
             stages.append({"stage": name, "status": "FAIL", "error": str(exc),
-                           "duration_sec": (datetime.utcnow() - t0).total_seconds()})
+                           "duration_sec": (datetime.now(timezone.utc) - t0).total_seconds()})
             raise
 
     status, error_msg = "SUCCESS", None
@@ -98,7 +98,7 @@ def run_one_date(date_str: str, config: Config) -> dict:
         status = "FAIL"
         error_msg = str(exc)
 
-    finished_at = datetime.utcnow()
+    finished_at = datetime.now(timezone.utc)
     metadata = {
         "date": date_str,
         "status": status,
