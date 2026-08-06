@@ -3,9 +3,17 @@
 Technical Docs/
 gitignore
 .venv/
+
+# Generated pipeline output — never commit these
 data/bronze/
 data/silver/
 data/gold/
 data/quarantine/
+data/landing/products.db
 state/
 logs/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*.pyo
