@@ -45,3 +45,6 @@ data/landing/products.db
 data/landing/customers/customers.json
 logs/
 state/
+
+# Generated test reports
+reports/
