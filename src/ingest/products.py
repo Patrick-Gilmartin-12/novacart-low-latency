@@ -62,7 +62,7 @@ def ingest_products(
     df.to_parquet(out_path, index=False)
 
     new_watermark = str(df["updated_at"].max())
-    state.set_watermark(WATERMARK_KEY, new_watermark)
-    log_event(logger, "INFO", "products_watermark_advanced", new_watermark=new_watermark)
+    state.stage_watermark(WATERMARK_KEY, new_watermark)
+    log_event(logger, "INFO", "products_watermark_staged", new_watermark=new_watermark)
 
     return out_path

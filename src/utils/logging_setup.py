@@ -20,10 +20,12 @@ def get_logger(name: str, log_dir: Path) -> logging.Logger:
     return logger
 
 
-def log_event(logger: logging.Logger, level: str, event: str, **kwargs):
+def log_event(logger: logging.Logger, level: str, event: str,
+              run_id: str | None = None, **kwargs):
     payload = {
         "ts": datetime.now(timezone.utc).isoformat(),
         "event": event,
+        **({} if run_id is None else {"run_id": run_id}),
         **kwargs,
     }
     getattr(logger, level.lower())(json.dumps(payload))

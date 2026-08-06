@@ -1,0 +1,36 @@
+{"ts": "2026-08-06T15:23:59.693850+00:00", "event": "pipeline_start", "run_id": "9cb43f97-d83a-49a5-933b-57c3fe057e25", "date": "2025-11-07"}
+{"ts": "2026-08-06T15:23:59.694631+00:00", "event": "stage_start", "run_id": "9cb43f97-d83a-49a5-933b-57c3fe057e25", "stage": "ingest_orders"}
+{"ts": "2026-08-06T15:23:59.736997+00:00", "event": "orders_ingested", "date": "2025-11-07", "rows": 5}
+{"ts": "2026-08-06T15:23:59.824372+00:00", "event": "orders_bronze_written", "path": "data\\bronze\\orders\\date=2025-11-07\\data.parquet", "rows": 5}
+{"ts": "2026-08-06T15:23:59.825284+00:00", "event": "stage_end", "run_id": "9cb43f97-d83a-49a5-933b-57c3fe057e25", "stage": "ingest_orders", "status": "OK"}
+{"ts": "2026-08-06T15:23:59.826325+00:00", "event": "stage_start", "run_id": "9cb43f97-d83a-49a5-933b-57c3fe057e25", "stage": "ingest_customers"}
+{"ts": "2026-08-06T15:23:59.859146+00:00", "event": "customers_ingested", "rows": 5}
+{"ts": "2026-08-06T15:23:59.882512+00:00", "event": "customers_bronze_written", "path": "data\\bronze\\customers\\data.parquet", "rows": 5}
+{"ts": "2026-08-06T15:23:59.885852+00:00", "event": "stage_end", "run_id": "9cb43f97-d83a-49a5-933b-57c3fe057e25", "stage": "ingest_customers", "status": "OK"}
+{"ts": "2026-08-06T15:23:59.886335+00:00", "event": "stage_start", "run_id": "9cb43f97-d83a-49a5-933b-57c3fe057e25", "stage": "ingest_products"}
+{"ts": "2026-08-06T15:23:59.887293+00:00", "event": "products_watermark_read", "watermark": "1970-01-01T00:00:00"}
+{"ts": "2026-08-06T15:23:59.894529+00:00", "event": "products_ingested", "rows": 4, "since": "1970-01-01T00:00:00"}
+{"ts": "2026-08-06T15:23:59.912332+00:00", "event": "products_watermark_staged", "new_watermark": "2025-11-05T11:15:00"}
+{"ts": "2026-08-06T15:23:59.918171+00:00", "event": "stage_end", "run_id": "9cb43f97-d83a-49a5-933b-57c3fe057e25", "stage": "ingest_products", "status": "OK"}
+{"ts": "2026-08-06T15:23:59.924006+00:00", "event": "stage_start", "run_id": "9cb43f97-d83a-49a5-933b-57c3fe057e25", "stage": "silver_orders"}
+{"ts": "2026-08-06T15:24:00.009847+00:00", "event": "orders_quarantined", "count": 1}
+{"ts": "2026-08-06T15:24:00.015450+00:00", "event": "orders_deduped", "dropped": 1}
+{"ts": "2026-08-06T15:24:00.027689+00:00", "event": "silver_orders_written", "rows": 3, "date": "2025-11-07"}
+{"ts": "2026-08-06T15:24:00.033923+00:00", "event": "stage_end", "run_id": "9cb43f97-d83a-49a5-933b-57c3fe057e25", "stage": "silver_orders", "status": "OK"}
+{"ts": "2026-08-06T15:24:00.039033+00:00", "event": "stage_start", "run_id": "9cb43f97-d83a-49a5-933b-57c3fe057e25", "stage": "silver_customers"}
+{"ts": "2026-08-06T15:24:00.087658+00:00", "event": "customers_quarantined", "count": 1}
+{"ts": "2026-08-06T15:24:00.102733+00:00", "event": "silver_customers_written", "rows": 4}
+{"ts": "2026-08-06T15:24:00.115737+00:00", "event": "stage_end", "run_id": "9cb43f97-d83a-49a5-933b-57c3fe057e25", "stage": "silver_customers", "status": "OK"}
+{"ts": "2026-08-06T15:24:00.137458+00:00", "event": "stage_start", "run_id": "9cb43f97-d83a-49a5-933b-57c3fe057e25", "stage": "silver_products"}
+{"ts": "2026-08-06T15:24:00.208152+00:00", "event": "silver_products_written", "rows": 4}
+{"ts": "2026-08-06T15:24:00.215559+00:00", "event": "stage_end", "run_id": "9cb43f97-d83a-49a5-933b-57c3fe057e25", "stage": "silver_products", "status": "OK"}
+{"ts": "2026-08-06T15:24:00.221219+00:00", "event": "stage_start", "run_id": "9cb43f97-d83a-49a5-933b-57c3fe057e25", "stage": "dim_product"}
+{"ts": "2026-08-06T15:24:00.238198+00:00", "event": "dim_product_written", "rows": 4}
+{"ts": "2026-08-06T15:24:00.243580+00:00", "event": "stage_end", "run_id": "9cb43f97-d83a-49a5-933b-57c3fe057e25", "stage": "dim_product", "status": "OK"}
+{"ts": "2026-08-06T15:24:00.245892+00:00", "event": "stage_start", "run_id": "9cb43f97-d83a-49a5-933b-57c3fe057e25", "stage": "dim_customer"}
+{"ts": "2026-08-06T15:24:00.299257+00:00", "event": "dim_customer_initial_load", "rows": 4}
+{"ts": "2026-08-06T15:24:00.305915+00:00", "event": "stage_end", "run_id": "9cb43f97-d83a-49a5-933b-57c3fe057e25", "stage": "dim_customer", "status": "OK"}
+{"ts": "2026-08-06T15:24:00.308004+00:00", "event": "stage_start", "run_id": "9cb43f97-d83a-49a5-933b-57c3fe057e25", "stage": "fact_orders"}
+{"ts": "2026-08-06T15:24:00.344467+00:00", "event": "fact_orders_written", "date": "2025-11-07", "rows": 3}
+{"ts": "2026-08-06T15:24:00.344940+00:00", "event": "stage_end", "run_id": "9cb43f97-d83a-49a5-933b-57c3fe057e25", "stage": "fact_orders", "status": "OK"}
+{"ts": "2026-08-06T15:24:00.389614+00:00", "event": "pipeline_end", "run_id": "9cb43f97-d83a-49a5-933b-57c3fe057e25", "date": "2025-11-07", "status": "SUCCESS", "error": null, "started_at": "2026-08-06T15:23:59.693838", "finished_at": "2026-08-06T15:24:00.387919", "duration_sec": 0.694081}
