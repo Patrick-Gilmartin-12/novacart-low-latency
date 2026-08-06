@@ -37,6 +37,11 @@ htmlcov/
 Thumbs.db
 
 # Pipeline runtime outputs (generated data - not source)
-data/
+data/bronze/
+data/silver/
+data/gold/
+data/quarantine/
+data/landing/products.db
+data/landing/customers/customers.json
 logs/
 state/

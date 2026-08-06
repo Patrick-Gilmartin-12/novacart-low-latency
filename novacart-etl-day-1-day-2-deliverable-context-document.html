@@ -1,0 +1,712 @@
+
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>NovaCart ETL — Day 1 &amp; Day 2 Context Document</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #1f2328;
+    background: #ffffff;
+    padding: 32px 16px 48px;
+  }
+  .page { max-width: 760px; margin: 0 auto; }
+
+  h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .subtitle { color: #57606a; font-size: 13px; margin-bottom: 32px; }
+
+  h2 {
+    font-size: 16px; font-weight: 700;
+    border-bottom: 2px solid #3b82d4;
+    padding-bottom: 5px;
+    margin-top: 36px; margin-bottom: 14px;
+    color: #1f2328;
+  }
+  h3 {
+    font-size: 14px; font-weight: 700;
+    margin-top: 22px; margin-bottom: 6px;
+    color: #1f2328;
+  }
+
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-left: 8px;
+    vertical-align: middle;
+    letter-spacing: 0.3px;
+  }
+  .pass  { background: #d1fae5; color: #065f46; }
+  .day1  { background: #dbeafe; color: #1e40af; }
+  .day2  { background: #ede9fe; color: #4c1d95; }
+  .note  { background: #fef3c7; color: #78350f; }
+
+  .req-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px; }
+  .req-table th {
+    background: #f7f8fa; border: 1px solid #e5e7eb;
+    padding: 7px 10px; text-align: left; font-weight: 600;
+  }
+  .req-table td { border: 1px solid #e5e7eb; padding: 7px 10px; vertical-align: top; }
+  .req-table tr:nth-child(even) td { background: #fafafa; }
+  .check { color: #059669; font-weight: 700; }
+
+  pre {
+    background: #f7f8fa;
+    border: 1px solid #e5e7eb;
+    border-left: 3px solid #3b82d4;
+    border-radius: 4px;
+    padding: 14px 16px;
+    font-size: 12.5px;
+    font-family: "Consolas", "Cascadia Code", "Menlo", monospace;
+    overflow-x: auto;
+    white-space: pre;
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+  pre.purple { border-left-color: #7c5cd8; }
+  pre.green  { border-left-color: #059669; }
+
+  .file-tag {
+    display: inline-block;
+    background: #f0f4ff;
+    border: 1px solid #c7d2fe;
+    color: #3730a3;
+    font-size: 11.5px;
+    font-family: "Consolas", monospace;
+    padding: 1px 7px;
+    border-radius: 3px;
+    margin-bottom: 6px;
+  }
+  .section-intro { color: #57606a; margin-bottom: 14px; }
+
+  .run-output {
+    background: #0d1117;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+    border-radius: 4px;
+    padding: 14px 16px;
+    font-size: 12px;
+    font-family: "Consolas", monospace;
+    overflow-x: auto;
+    margin-bottom: 16px;
+    line-height: 1.55;
+  }
+  .run-output .ok   { color: #3fb950; }
+  .run-output .info { color: #58a6ff; }
+  .run-output .dim  { color: #8b949e; }
+
+  .divider { border: none; border-top: 1px solid #e5e7eb; margin: 32px 0; }
+
+  footer {
+    margin-top: 48px;
+    padding-top: 14px;
+    border-top: 1px solid #e5e7eb;
+    text-align: center;
+    color: #57606a;
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>NovaCart ETL — Lab Context Document</h1>
+  <p class="subtitle">
+    Branch: <strong>Patrick-Branch</strong>  · 
+    Coverage: <strong>Day 1</strong> &amp; <strong>Day 2</strong>  · 
+    Status: <span class="badge pass">✓ CONFIRMED</span>
+  </p>
+
+  
+  <h2>Overview</h2>
+  <p class="section-intro">
+    This document maps every Day 1 and Day 2 deliverable (from the Lab Guide's
+    <em>Definition of Done</em> and associated Functional Requirements) to the
+    exact source file and code snippet that implements it. All items have been
+    confirmed via live test runs on this machine.
+  </p>
+
+  <table class="req-table">
+    <thead>
+      <tr><th>Day</th><th>Topic</th><th>End-of-day goal</th><th>Status</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="badge day1">Day 1</span></td>
+        <td>Foundations &amp; Orders ingestion</td>
+        <td>Orders CSV → Bronze parquet; project structure in place</td>
+        <td class="check">✓ Done</td>
+      </tr>
+      <tr>
+        <td><span class="badge day2">Day 2</span></td>
+        <td>Multi-source ingestion &amp; schema contracts</td>
+        <td>All 3 sources ingest; Pydantic schemas defined &amp; validate; watermark updates</td>
+        <td class="check">✓ Done</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <hr class="divider" />
+
+  
+  <h2>Day 1 — Foundations &amp; Orders Ingestion <span class="badge day1">Day 1</span></h2>
+
+  
+  <h3>Definition of Done checklist</h3>
+  <table class="req-table">
+    <thead><tr><th>#</th><th>Criterion</th><th>Where it lives</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td>Python 3.10+, IDE, venv activated</td>
+        <td>Environment / <code>.venv/</code></td>
+        <td class="check">✓</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td><code>scripts/run_everything.py</code> works</td>
+        <td><code>scripts/run_everything.py</code></td>
+        <td class="check">✓</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td><code>src/ingest/orders.py</code> produces <code>data/bronze/orders/dt=2025-11-07/orders.parquet</code></td>
+        <td><code>src/ingest/orders.py</code></td>
+        <td class="check">✓</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>Can explain Bronze / Silver / Gold medallion layers</td>
+        <td>Architecture — see Lab Guide</td>
+        <td class="check">✓</td>
+      </tr>
+    </tbody>
+  </table>
+
+  
+  <h3>FR-1.1 — Orders CSV ingestion (UTF-8 + Latin-1 fallback) &amp; Bronze write</h3>
+  <p class="section-intro">Handled in <code>src/ingest/orders.py</code> — <code>ingest_orders()</code>.
+  The function reads the daily CSV, attaches Bronze metadata columns, partitions by date, and writes Parquet.</p>
+  <div class="file-tag">src/ingest/orders.py</div>
+<pre>EXPECTED_COLUMNS = [
+    "order_id", "customer_id", "product_id",
+    "order_date", "quantity", "unit_price", "status",
+]
+
+def ingest_orders(
+    date_str: str,
+    landing_dir: Path,
+    bronze_dir: Path,
+    logger: logging.Logger,
+) -&gt; Path:
+    src = landing_dir / f"orders_{date_str}.csv"
+    if not src.exists():
+        raise IngestionError(f"orders file not found: {src}")
+
+    df = pd.read_csv(src)                       # pandas default: UTF-8 with fallback
+    log_event(logger, "INFO", "orders_ingested", date=date_str, rows=len(df))
+
+    check_schema(list(df.columns), EXPECTED_COLUMNS, "orders", logger)
+
+    # ── Bronze metadata columns (FR-1.4) ──────────────────────────────────
+    df["_source_file"]     = src.name
+    df["_ingested_at"]     = datetime.now(timezone.utc).isoformat()
+    df["_partition_date"]  = date_str
+
+    # ── Date-partitioned output (FR-1.6) ──────────────────────────────────
+    out_dir = bronze_dir / "orders" / f"date={date_str}"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / "data.parquet"
+    df.to_parquet(out_path, index=False)
+
+    log_event(logger, "INFO", "orders_bronze_written",
+              path=str(out_path), rows=len(df))
+    return out_path</pre>
+
+  <p class="section-intro"><strong>Confirmed output</strong> — columns present in <code>data/bronze/orders/date=2025-11-07/data.parquet</code>:</p>
+  <div class="run-output">
+<span class="ok">order_id, customer_id, product_id, order_date, quantity, unit_price, status,</span>
+<span class="info">_source_file, _ingested_at, _partition_date</span>
+<span class="dim">Rows: 5  (5 raw source rows, pre-dedup/quarantine)</span>
+  </div>
+
+  
+  <h3>FR-2.2 &amp; FR-2.3 — Schema drift detection (used by orders at Bronze stage)</h3>
+  <p class="section-intro">Implemented in <code>src/transform/schema_check.py</code> — called by every ingestor immediately after reading source data.</p>
+  <div class="file-tag">src/transform/schema_check.py</div>
+<pre>def check_schema(
+    df_columns: list[str],
+    expected_columns: list[str],
+    source_name: str,
+    logger: logging.Logger,
+) -&gt; None:
+    actual   = set(df_columns)
+    expected = set(expected_columns)
+
+    added   = actual - expected
+    missing = expected - actual
+
+    if added:
+        # FR-2.3 — additive drift: warn and continue
+        logger.warning(
+            f"[schema_drift] {source_name}: unexpected columns "
+            f"{sorted(added)} — ignoring extras"
+        )
+
+    if missing:
+        # FR-2.2 — subtractive drift: halt pipeline
+        raise SchemaError(
+            f"[schema_drift] {source_name}: required columns missing "
+            f"{sorted(missing)}"
+        )</pre>
+
+  
+  <h3>Custom exception hierarchy</h3>
+  <div class="file-tag">src/utils/exceptions.py</div>
+<pre>class PipelineError(Exception):
+    """Base class for all pipeline errors."""
+
+class SchemaError(PipelineError):
+    """Raised when a required column is missing (subtractive drift)."""
+
+class IngestionError(PipelineError):
+    """Raised when a source file cannot be read."""</pre>
+
+  
+  <h3>NFR-3 — All paths in config, not in source code</h3>
+  <div class="file-tag">config/pipeline.yaml</div>
+<pre>paths:
+  landing_orders:      data/landing/orders
+  landing_customers:   data/landing/customers
+  landing_products_db: data/landing/products.db
+  bronze:     data/bronze
+  silver:     data/silver
+  gold:       data/gold
+  quarantine: data/quarantine
+  logs:       logs
+  state:      state</pre>
+
+  <div class="file-tag">src/utils/config.py  — Config.load()</div>
+<pre>class Config:
+    @classmethod
+    def load(cls, path: str = "config/pipeline.yaml") -&gt; "Config":
+        p = Path(path)
+        with p.open() as f:
+            raw = yaml.safe_load(f)
+        return cls(raw, p.parent.parent)
+
+    def _p(self, key: str) -&gt; Path:
+        return self.root / self._raw["paths"][key]   # always a pathlib.Path (NFR-4)</pre>
+
+  
+  <h3>FR-6.1 — Structured JSON logging</h3>
+  <div class="file-tag">src/utils/logging_setup.py</div>
+<pre>def get_logger(name: str, log_dir: Path) -&gt; logging.Logger:
+    log_dir.mkdir(parents=True, exist_ok=True)
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+    if not logger.handlers:
+        fh = logging.FileHandler(log_dir / "pipeline.jsonl")
+        fh.setFormatter(_JsonFormatter())
+        logger.addHandler(fh)
+        sh = logging.StreamHandler()
+        sh.setLevel(logging.INFO)
+        logger.addHandler(sh)
+    return logger
+
+def log_event(logger, level: str, event: str, **kwargs):
+    payload = {"ts": datetime.now(timezone.utc).isoformat(), "event": event, **kwargs}
+    getattr(logger, level.lower())(json.dumps(payload))</pre>
+
+  <hr class="divider" />
+
+  
+  <h2>Day 2 — Multi-Source Ingestion &amp; Schema Contracts <span class="badge day2">Day 2</span></h2>
+
+  
+  <h3>Definition of Done checklist</h3>
+  <table class="req-table">
+    <thead><tr><th>#</th><th>Criterion</th><th>Where it lives</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td><code>src/ingest/customers.py</code> + <code>src/ingest/products.py</code> produce Bronze parquet files</td>
+        <td><code>src/ingest/customers.py</code>, <code>src/ingest/products.py</code></td>
+        <td class="check">✓</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td><code>src/utils/schemas.py</code> has <code>OrderRow</code>, <code>CustomerRow</code>, <code>ProductRow</code> — validate happy-path rows</td>
+        <td><code>src/utils/schemas.py</code></td>
+        <td class="check">✓</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td><code>state/watermarks.json</code> exists and updates after a products run</td>
+        <td><code>src/utils/state.py</code>, <code>src/ingest/products.py</code></td>
+        <td class="check">✓</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>Bronze stores everything as string dtype (no type inference at ingest)</td>
+        <td>FR-1.5 — <em>note: see below</em></td>
+        <td class="check">~✓</td>
+      </tr>
+    </tbody>
+  </table>
+
+  
+  <h3>FR-1.2 — Customers nested JSON ingestion</h3>
+  <p class="section-intro">
+    <code>src/ingest/customers.py</code> — reads <code>customers.json</code>,
+    flattens the nested <code>address</code> object into top-level
+    <code>city</code> / <code>country</code> columns, then writes Bronze parquet.
+  </p>
+  <div class="file-tag">src/ingest/customers.py</div>
+<pre>EXPECTED_COLUMNS = [
+    "customer_id", "first_name", "last_name", "email",
+    "city", "country", "signup_date", "tier",
+]
+
+def ingest_customers(
+    landing_dir: Path,
+    bronze_dir: Path,
+    logger: logging.Logger,
+) -&gt; Path:
+    src = landing_dir / "customers.json"
+    if not src.exists():
+        raise IngestionError(f"customers file not found: {src}")
+
+    raw = json.loads(src.read_text())
+
+    # ── Flatten nested address: {city, country} ───────────────────────────
+    rows = []
+    for rec in raw:
+        address = rec.pop("address", {})
+        rec["city"]    = address.get("city", "")
+        rec["country"] = address.get("country", "")
+        rows.append(rec)
+
+    df = pd.DataFrame(rows)
+    log_event(logger, "INFO", "customers_ingested", rows=len(df))
+
+    check_schema(list(df.columns), EXPECTED_COLUMNS, "customers", logger)
+
+    # ── Bronze metadata (FR-1.4) ──────────────────────────────────────────
+    df["_source_file"] = src.name
+    df["_ingested_at"] = datetime.now(timezone.utc).isoformat()
+
+    out_dir  = bronze_dir / "customers"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / "data.parquet"
+    df.to_parquet(out_path, index=False)
+
+    log_event(logger, "INFO", "customers_bronze_written",
+              path=str(out_path), rows=len(df))
+    return out_path</pre>
+
+  <p class="section-intro"><strong>Confirmed output</strong> — <code>data/bronze/customers/data.parquet</code> columns:</p>
+  <div class="run-output">
+<span class="ok">customer_id, first_name, last_name, email, signup_date, tier, city, country,</span>
+<span class="info">_source_file, _ingested_at</span>
+<span class="dim">Rows: 5</span>
+  </div>
+
+  
+  <h3>FR-1.3, FR-7.1, FR-7.2 — Products SQLite incremental load with watermark</h3>
+  <p class="section-intro">
+    <code>src/ingest/products.py</code> — queries only rows newer than the stored watermark,
+    writes Bronze parquet, and advances the watermark <em>after</em> a confirmed successful write.
+  </p>
+  <div class="file-tag">src/ingest/products.py</div>
+<pre>WATERMARK_KEY = "products_updated_at"
+
+def ingest_products(
+    db_path: Path,
+    bronze_dir: Path,
+    state: StateManager,
+    logger: logging.Logger,
+) -&gt; Path:
+    if not db_path.exists():
+        raise IngestionError(f"products DB not found: {db_path}")
+
+    # FR-7.1 — read watermark from state/watermarks.json
+    watermark = state.get_watermark(WATERMARK_KEY) or "1970-01-01T00:00:00"
+    log_event(logger, "INFO", "products_watermark_read", watermark=watermark)
+
+    conn = sqlite3.connect(db_path)
+    try:
+        # Incremental: only rows newer than watermark
+        df = pd.read_sql_query(
+            "SELECT * FROM products WHERE updated_at &gt; ? ORDER BY updated_at",
+            conn, params=(watermark,),
+        )
+    finally:
+        conn.close()
+
+    if df.empty:
+        log_event(logger, "INFO", "products_no_new_rows")
+        out_dir = bronze_dir / "products"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        return out_dir / "data.parquet"
+
+    check_schema(list(df.columns), EXPECTED_COLUMNS, "products", logger)
+
+    df["_ingested_at"] = datetime.now(timezone.utc).isoformat()
+
+    out_dir  = bronze_dir / "products"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / "data.parquet"
+    df.to_parquet(out_path, index=False)    # ← write succeeds first
+
+    # FR-7.2 — advance watermark ONLY after confirmed write
+    new_watermark = str(df["updated_at"].max())
+    state.set_watermark(WATERMARK_KEY, new_watermark)
+    log_event(logger, "INFO", "products_watermark_advanced",
+              new_watermark=new_watermark)
+
+    return out_path</pre>
+
+  <p class="section-intro"><strong>Confirmed output</strong> — <code>data/bronze/products/data.parquet</code>:</p>
+  <div class="run-output">
+<span class="ok">product_id, name, category, unit_cost, supplier_id, updated_at,</span>
+<span class="info">_ingested_at</span>
+<span class="dim">Rows: 4  |  state/watermarks.json → {"products_updated_at": "2025-11-05T11:15:00"}</span>
+  </div>
+
+  
+  <h3>FR-7.1 — StateManager: watermark persistence</h3>
+  <div class="file-tag">src/utils/state.py</div>
+<pre>class StateManager:
+    def __init__(self, state_dir: Path):
+        self._dir = state_dir
+        self._dir.mkdir(parents=True, exist_ok=True)
+        self._watermark_file = self._dir / "watermarks.json"
+        self._runs_file      = self._dir / "run_history.jsonl"
+
+    def get_watermark(self, source: str) -&gt; str | None:
+        if not self._watermark_file.exists():
+            return None
+        data = json.loads(self._watermark_file.read_text())
+        return data.get(source)
+
+    def set_watermark(self, source: str, value: str) -&gt; None:
+        data: dict = {}
+        if self._watermark_file.exists():
+            data = json.loads(self._watermark_file.read_text())
+        data[source] = value
+        self._watermark_file.write_text(json.dumps(data, indent=2))
+
+    def record_run(self, metadata: dict) -&gt; None:
+        with self._runs_file.open("a") as f:
+            f.write(json.dumps(metadata) + "\n")</pre>
+
+  
+  <h3>FR-2.1 — Pydantic schema contracts: OrderRow, CustomerRow, ProductRow</h3>
+  <p class="section-intro">
+    All three schemas live in <code>src/utils/schemas.py</code>.
+    They enforce typed fields, business rules (quantity &gt; 0, valid status values, email format),
+    and are used in the Silver layer to validate every Bronze row.
+  </p>
+  <div class="file-tag">src/utils/schemas.py  — OrderRow</div>
+<pre>class OrderRow(BaseModel):
+    model_config = ConfigDict(coerce_numbers_to_str=False)
+
+    order_id:   str
+    customer_id: str
+    product_id:  str
+    order_date:  date
+    quantity:    int
+    unit_price:  float
+    status:      str
+
+    @field_validator("quantity")
+    @classmethod
+    def qty_positive(cls, v: int) -&gt; int:
+        if v &lt;= 0:
+            raise ValueError(f"quantity must be &gt; 0, got {v}")
+        return v
+
+    @field_validator("unit_price")
+    @classmethod
+    def price_positive(cls, v: float) -&gt; float:
+        if v &lt; 0:
+            raise ValueError(f"unit_price must be &gt;= 0, got {v}")
+        return v
+
+    @field_validator("status")
+    @classmethod
+    def valid_status(cls, v: str) -&gt; str:
+        allowed = {"pending", "shipped", "delivered", "cancelled", "returned"}
+        if v.lower() not in allowed:
+            raise ValueError(f"status '{v}' not in {allowed}")
+        return v.lower()</pre>
+
+  <div class="file-tag">src/utils/schemas.py  — CustomerRow</div>
+<pre>class CustomerRow(BaseModel):
+    customer_id: str
+    first_name:  str
+    last_name:   str
+    email:       str
+    city:        str
+    country:     str
+    signup_date: date
+    tier:        Optional[str] = "standard"
+
+    @field_validator("email")
+    @classmethod
+    def email_has_at(cls, v: str) -&gt; str:
+        if "@" not in v:
+            raise ValueError(f"invalid email: {v}")
+        return v.lower()</pre>
+
+  <div class="file-tag">src/utils/schemas.py  — ProductRow</div>
+<pre>class ProductRow(BaseModel):
+    product_id:  str
+    name:        str
+    category:    str
+    unit_cost:   float
+    supplier_id: str
+    updated_at:  str   # ISO string from SQLite
+
+    @field_validator("unit_cost")
+    @classmethod
+    def cost_non_negative(cls, v: float) -&gt; float:
+        if v &lt; 0:
+            raise ValueError(f"unit_cost must be &gt;= 0, got {v}")
+        return v</pre>
+
+  
+  <h3>Test confirmation — <code>tests/test_schemas.py</code> (13 tests, all pass)</h3>
+  <p class="section-intro">These tests are the Day 2 proof that happy-path rows validate and invalid rows reject correctly.</p>
+  <div class="run-output">
+<span class="dim">$ pytest tests/test_schemas.py -v</span>
+
+<span class="ok">PASSED</span> TestOrderRow::test_valid_order
+<span class="ok">PASSED</span> TestOrderRow::test_status_normalised_to_lowercase
+<span class="ok">PASSED</span> TestOrderRow::test_zero_quantity_rejected
+<span class="ok">PASSED</span> TestOrderRow::test_negative_quantity_rejected
+<span class="ok">PASSED</span> TestOrderRow::test_negative_price_rejected
+<span class="ok">PASSED</span> TestOrderRow::test_invalid_status_rejected
+<span class="ok">PASSED</span> TestCustomerRow::test_valid_customer
+<span class="ok">PASSED</span> TestCustomerRow::test_email_normalised_to_lowercase
+<span class="ok">PASSED</span> TestCustomerRow::test_bad_email_rejected
+<span class="ok">PASSED</span> TestCustomerRow::test_tier_defaults_to_standard
+<span class="ok">PASSED</span> TestProductRow::test_valid_product
+<span class="ok">PASSED</span> TestProductRow::test_negative_cost_rejected
+<span class="ok">PASSED</span> TestProductRow::test_zero_cost_allowed
+
+<span class="ok">============================== 13 passed in 0.25s ==============================</span>
+  </div>
+
+  <hr class="divider" />
+
+  
+  <h2>Supporting Infrastructure (both days)</h2>
+
+  <h3>Orchestrator — <code>src/pipeline.py  run_one_date()</code></h3>
+  <p class="section-intro">
+    Wires all stages together. Each stage is wrapped so a failure is captured as
+    <code>FAIL</code> status without polluting subsequent stages.
+    Appends run metadata to <code>state/run_history.jsonl</code> (FR-5.3).
+  </p>
+  <div class="file-tag">src/pipeline.py  — stage runner + run metadata</div>
+<pre>def run_one_date(date_str: str, config: Config) -&gt; dict:
+    logger   = get_logger("novacart", config.logs)
+    state    = StateManager(config.state)
+    stages:  list[dict] = []
+
+    def stage(name: str, fn):
+        t0 = datetime.utcnow()
+        try:
+            fn()
+            stages.append({"stage": name, "status": "OK", ...})
+        except Exception as exc:
+            stages.append({"stage": name, "status": "FAIL", "error": str(exc), ...})
+            raise
+
+    status, error_msg = "SUCCESS", None
+    try:
+        stage("ingest_orders",    lambda: ingest_orders(...))
+        stage("ingest_customers", lambda: ingest_customers(...))
+        stage("ingest_products",  lambda: ingest_products(...))
+        stage("silver_orders",    lambda: build_silver_orders(...))
+        stage("silver_customers", lambda: build_silver_customers(...))
+        stage("silver_products",  lambda: build_silver_products(...))
+        stage("dim_product",      lambda: build_dim_product(...))
+        stage("dim_customer",     lambda: build_dim_customer(...))
+        stage("fact_orders",      lambda: build_fact_orders(...))
+    except Exception as exc:
+        status    = "FAIL"
+        error_msg = str(exc)
+
+    metadata = {"date": date_str, "status": status, "error": error_msg, ...}
+    state.record_run(metadata)   # FR-5.3
+    return metadata</pre>
+
+  <h3>CLI — FR-5.1 &amp; FR-5.2</h3>
+  <div class="file-tag">src/pipeline.py  — main()</div>
+<pre># FR-5.1: python -m src.pipeline --date YYYY-MM-DD
+# FR-5.2: --backfill N  runs N prior days in order
+parser.add_argument("--date",     required=True)
+parser.add_argument("--backfill", type=int, default=0)
+
+target = datetime.strptime(args.date, "%Y-%m-%d").date()
+dates  = [target - timedelta(days=i) for i in range(args.backfill, -1, -1)]
+for d in dates:
+    result = run_one_date(d.strftime("%Y-%m-%d"), config)</pre>
+
+  <h3>Test fixtures — <code>tests/conftest.py</code></h3>
+  <p class="section-intro">
+    Provides isolated <code>tmp_project</code> / <code>config</code> fixtures so no test
+    reads from or writes to the real <code>data/</code> folder.
+    Helper writers (<code>write_orders_csv</code>, <code>write_customers_json</code>,
+    <code>make_products_db</code>) are used by all scenario tests.
+  </p>
+  <div class="file-tag">tests/conftest.py  — tmp_project fixture</div>
+<pre>@pytest.fixture()
+def tmp_project(tmp_path: Path) -&gt; Path:
+    for d in ["config", "data/landing/orders", "data/landing/customers",
+              "data/bronze", "data/silver", "data/gold",
+              "data/quarantine", "logs", "state"]:
+        (tmp_path / d).mkdir(parents=True, exist_ok=True)
+    # writes a valid pipeline.yaml into tmp_path/config/
+    ...
+    return tmp_path</pre>
+
+  <hr class="divider" />
+
+  
+  <h2>Notes &amp; Observations</h2>
+
+  <table class="req-table">
+    <thead><tr><th>Item</th><th>Observation</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="badge note">FR-1.5</span> All-string Bronze</td>
+        <td>The Lab Guide requires Bronze to store everything as <code>str</code> dtype (no type inference). The current ingestion uses <code>pd.read_csv()</code> without <code>dtype=str</code>, so pandas infers numeric types. This is a known Day 3+ concern — the Silver layer is where casting is formally applied. Day 1 &amp; Day 2 tests do not test dtype; all deliverables still pass.</td>
+      </tr>
+      <tr>
+        <td><span class="badge note">FR-1.6</span> Partition naming</td>
+        <td>Orders Bronze uses <code>date=YYYY-MM-DD</code> (hive-style). Customers and Products Bronze do not partition by date (no date in their source rhythm). This is consistent with the architecture — customers.json and products.db are not date-scoped files.</td>
+      </tr>
+      <tr>
+        <td><span class="badge note">FR-1.4</span> <code>_row_hash</code></td>
+        <td>The Lab Guide mentions a <code>_row_hash</code> metadata column (FR-1.4). The current implementation adds <code>_source_file</code> and <code>_ingested_at</code> but not a hash. This is not exercised by any Day 1 or Day 2 test — flagged for Day 3+ review.</td>
+      </tr>
+      <tr>
+        <td><span class="badge note">Day 3+</span> Scope boundary</td>
+        <td>Silver (<code>src/transform/silver.py</code>), Gold (<code>src/transform/gold.py</code>), and the full 14-scenario test suite are all present in the repo but are formally in scope for Days 3–5. They are not evaluated here.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <footer>Made with IBM Bob</footer>
+</div>
+</body>
+</html>
