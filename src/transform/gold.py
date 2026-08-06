@@ -2,7 +2,7 @@
 from __future__ import annotations
 import hashlib
 import logging
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -15,6 +15,42 @@ _HIGH_DATE = "9999-12-31"
 def _row_hash(row: pd.Series, fields: list[str]) -> str:
     val = "|".join(str(row.get(f, "")) for f in sorted(fields))
     return hashlib.md5(val.encode()).hexdigest()
+
+
+# ── dim_date: calendar table 2024-2026 ──────────────────────────────────────
+
+def build_dim_date(
+    gold_dir: Path,
+    logger: logging.Logger,
+    start_year: int = 2024,
+    end_year: int = 2026,
+) -> Path:
+    """Build a calendar dimension covering every day from start_year to end_year inclusive."""
+    out_dir = gold_dir
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / "dim_date.parquet"
+
+    dates = pd.date_range(
+        start=date(start_year, 1, 1),
+        end=date(end_year, 12, 31),
+        freq="D",
+    )
+    df = pd.DataFrame({"date_key": dates.strftime("%Y-%m-%d")})
+    df["date"]        = pd.to_datetime(df["date_key"])
+    df["year"]        = df["date"].dt.year
+    df["quarter"]     = df["date"].dt.quarter
+    df["month"]       = df["date"].dt.month
+    df["month_name"]  = df["date"].dt.strftime("%B")
+    df["week"]        = df["date"].dt.isocalendar().week.astype(int)
+    df["day_of_week"] = df["date"].dt.dayofweek          # 0=Mon … 6=Sun
+    df["day_name"]    = df["date"].dt.strftime("%A")
+    df["is_weekend"]  = df["day_of_week"] >= 5
+    df = df.drop(columns=["date"])
+
+    df.to_parquet(out_path, index=False)
+    log_event(logger, "INFO", "dim_date_written", rows=len(df),
+              start=f"{start_year}-01-01", end=f"{end_year}-12-31")
+    return out_path
 
 
 # ── dim_product: SCD Type 1 (overwrite) ─────────────────────────────────────

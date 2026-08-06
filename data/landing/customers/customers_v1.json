@@ -17,8 +17,8 @@
     "last_name": "Jones",
     "email": "bob@example.com",
     "address": {
-      "city": "Portland",
-      "country": "US"
+      "city": "London",
+      "country": "GB"
     },
     "signup_date": "2024-03-22",
     "tier": "standard"
