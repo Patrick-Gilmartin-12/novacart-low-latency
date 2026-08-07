@@ -62,8 +62,11 @@ for date_str, rows in ORDERS.items():
 
 
 # ── Customers JSON (nested address) ─────────────────────────────────────────
+# Two versions to demonstrate SCD-2: CUST-002 moves from London → Portland.
+# customers_v1.json  = initial state (used for the first pipeline run)
+# customers.json     = updated state (used for the second pipeline run)
 
-customers = [
+customers_v1 = [
     {"customer_id": "CUST-001", "first_name": "Alice",  "last_name": "Smith",
      "email": "alice@example.com",  "address": {"city": "New York",  "country": "US"},
      "signup_date": "2024-01-15", "tier": "gold"},
@@ -82,9 +85,22 @@ customers = [
      "signup_date": "2024-08-01", "tier": "gold"},
 ]
 
+# SCD-2 proof: CUST-002 relocates from London/GB → Portland/US
+customers_v2 = [rec.copy() for rec in customers_v1]
+customers_v2[1] = {
+    "customer_id": "CUST-002", "first_name": "Bob", "last_name": "Jones",
+    "email": "bob@example.com", "address": {"city": "Portland", "country": "US"},
+    "signup_date": "2024-03-22", "tier": "standard",
+}
+
+# Write both versions; run_everything.py swaps them between pipeline runs
+(CUSTOMER_DIR / "customers_v1.json").write_text(json.dumps(customers_v1, indent=2))
+(CUSTOMER_DIR / "customers_v2.json").write_text(json.dumps(customers_v2, indent=2))
+
+# Default active file is v1 (initial state)
 cust_path = CUSTOMER_DIR / "customers.json"
-cust_path.write_text(json.dumps(customers, indent=2))
-print(f"  wrote {cust_path}")
+cust_path.write_text(json.dumps(customers_v1, indent=2))
+print(f"  wrote {cust_path}  (+ customers_v1.json, customers_v2.json for SCD-2 demo)")
 
 
 # ── Products SQLite DB ────────────────────────────────────────────────────────
@@ -102,17 +118,20 @@ conn.execute("""
     )
 """)
 products = [
+    # Initial snapshot
     ("PROD-001", "Wireless Headphones", "Electronics", 22.50, "SUP-A", "2025-10-01T10:00:00"),
     ("PROD-002", "Laptop Stand",        "Accessories",  8.75, "SUP-B", "2025-10-15T14:30:00"),
     ("PROD-003", "USB-C Hub",           "Electronics", 12.00, "SUP-A", "2025-11-01T09:00:00"),
     ("PROD-004", "Webcam HD",           "Electronics", 35.00, "SUP-C", "2025-11-05T11:15:00"),
+    # SCD-1 proof: PROD-001 price updated to 44.99 — newer updated_at wins on next run
+    ("PROD-001", "Wireless Headphones", "Electronics", 44.99, "SUP-A", "2025-11-08T08:00:00"),
 ]
 conn.executemany(
-    "INSERT INTO products VALUES (?,?,?,?,?,?)", products
+    "INSERT OR REPLACE INTO products VALUES (?,?,?,?,?,?)", products
 )
 conn.commit()
 conn.close()
-print(f"  wrote {DB_PATH} ({len(products)} products)")
+print(f"  wrote {DB_PATH} ({len(set(p[0] for p in products))} products, PROD-001 updated to $44.99)")
 
 print("\nSample data generation complete.")
 print("Next: python -m src.pipeline --date 2025-11-10 --backfill 3")

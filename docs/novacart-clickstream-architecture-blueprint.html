@@ -1,0 +1,559 @@
+
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>NovaCart Clickstream Architecture Blueprint</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "Segoe UI", system-ui, sans-serif; font-size: 14px; line-height: 1.6; background: #ffffff; color: #1f2328; }
+  .page { max-width: 760px; margin: 0 auto; padding: 40px 24px 60px; }
+  h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .subtitle { color: #57606a; font-size: 13px; margin-bottom: 32px; }
+  h2 { font-size: 16px; font-weight: 700; margin: 36px 0 10px; padding-bottom: 6px; border-bottom: 2px solid #e5e7eb; color: #1f2328; }
+  h3 { font-size: 13px; font-weight: 700; margin: 18px 0 6px; color: #3b82d4; text-transform: uppercase; letter-spacing: 0.04em; }
+  p { margin-bottom: 10px; }
+  ul, ol { margin: 6px 0 12px 20px; }
+  li { margin-bottom: 3px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0 20px; font-size: 13px; }
+  th { background: #f7f8fa; text-align: left; padding: 7px 10px; border: 1px solid #e5e7eb; font-weight: 600; }
+  td { padding: 6px 10px; border: 1px solid #e5e7eb; vertical-align: top; }
+  tr:nth-child(even) td { background: #f7f8fa; }
+  code { background: #f7f8fa; border: 1px solid #e5e7eb; border-radius: 3px; padding: 1px 5px; font-family: "Consolas", "Menlo", monospace; font-size: 12px; }
+  pre { background: #f7f8fa; border: 1px solid #e5e7eb; border-radius: 4px; padding: 12px 14px; overflow-x: auto; font-size: 12px; font-family: "Consolas", "Menlo", monospace; margin: 10px 0 18px; line-height: 1.5; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 3px; margin-right: 4px; }
+  .badge-blue { background: #dbeafe; color: #1e40af; }
+  .badge-green { background: #dcfce7; color: #166534; }
+  .badge-orange { background: #ffedd5; color: #9a3412; }
+  .badge-purple { background: #ede9fe; color: #5b21b6; }
+  .badge-red { background: #fee2e2; color: #991b1b; }
+  .flow { background: #f7f8fa; border: 1px solid #e5e7eb; border-radius: 4px; padding: 14px 16px; margin: 12px 0 20px; font-size: 12px; font-family: "Consolas", "Menlo", monospace; line-height: 2; }
+  .flow span { color: #57606a; }
+  .section-num { color: #57606a; font-weight: 400; }
+  .warn { background: #fff7ed; border-left: 3px solid #f97316; padding: 8px 12px; margin: 10px 0; font-size: 13px; }
+  .note { background: #eff6ff; border-left: 3px solid #3b82d4; padding: 8px 12px; margin: 10px 0; font-size: 13px; }
+  .divider { border: none; border-top: 1px solid #e5e7eb; margin: 32px 0; }
+  footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 12px; color: #57606a; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>NovaCart Clickstream Architecture Blueprint</h1>
+  <p class="subtitle">Behavioral Event Analytics Platform — Full Technical Specification — v1.0</p>
+
+  
+  <h2><span class="section-num">0 </span>End-to-End Production Flow</h2>
+  <div class="flow">
+Browser / Mobile SDK<br />
+  ↓  <span>batched POST /events/batch (HTTPS, Beacon API)</span><br />
+Edge Ingestion API  <span>(FastAPI • auth • validation • geo-IP • rate-limit)</span><br />
+  ↓  <span>async publish — partition key: session_id</span><br />
+Kafka  <span>clickstream.raw</span><br />
+  ↓<br />
+Spark Structured Streaming — Bronze Job<br />
+  ↓  <span>delta/bronze/clickstream (immutable, append-only)</span><br />
+Spark Structured Streaming — Silver Job<br />
+  ↓  <span>dedupe • bot filter • PII mask • URL parse — delta/silver/clickstream_clean</span><br />
+Sessionization Engine  <span>(stateful 30-min windows)</span><br />
+  ↓  <span>delta/gold/clickstream_sessions</span><br />
+Click-Path Reconstruction  <span>(transition graphs • Markov chains • funnel metrics)</span><br />
+  ↓  <span>delta/gold/click_paths • Kafka clickstream.analytics</span><br />
+ClickHouse Serving Layer  <span>(materialized views • pre-aggregated rollups)</span><br />
+  ↓<br />
+Grafana  /  Power BI  /  Superset    —    Recommendation &amp; ML Systems
+  </div>
+
+  <hr class="divider" />
+
+  
+  <h2><span class="section-num">1 </span>Event Contract (Schema Registry)</h2>
+
+  <h3>Technology</h3>
+  <p><span class="badge badge-blue">Confluent Schema Registry</span><span class="badge badge-blue">Avro</span><span class="badge badge-green">Pydantic v2 (Python validation)</span></p>
+  <p>Avro is the wire format. Pydantic v2 models are the Python-side contract used by the ingestion API and stream processors. Schema Registry enforces backward compatibility before any producer is allowed to publish.</p>
+
+  <h3>Core Event Fields (all events)</h3>
+  <table>
+    <tr><th>Field</th><th>Type</th><th>Nullable</th><th>Notes</th></tr>
+    <tr><td><code>event_id</code></td><td>UUID v4</td><td>No</td><td>Generated server-side at ingestion</td></tr>
+    <tr><td><code>session_id</code></td><td>UUID v4</td><td>No</td><td>SDK-generated; anonymous fallback required</td></tr>
+    <tr><td><code>user_id</code></td><td>string</td><td>Yes</td><td>Null until authenticated; never null + anonymous_id</td></tr>
+    <tr><td><code>anonymous_id</code></td><td>UUID v4</td><td>No</td><td>Persistent device fingerprint from SDK</td></tr>
+    <tr><td><code>event_type</code></td><td>enum</td><td>No</td><td>See event types table below</td></tr>
+    <tr><td><code>page_url</code></td><td>string</td><td>No</td><td>Full URL; parsed into components in Silver</td></tr>
+    <tr><td><code>referrer_url</code></td><td>string</td><td>Yes</td><td></td></tr>
+    <tr><td><code>timestamp</code></td><td>ISO-8601 UTC</td><td>No</td><td>Client-side; ingestion_timestamp added server-side</td></tr>
+    <tr><td><code>device_type</code></td><td>enum</td><td>No</td><td>mobile / tablet / desktop / bot</td></tr>
+    <tr><td><code>operating_system</code></td><td>string</td><td>No</td><td>Parsed from User-Agent in API</td></tr>
+    <tr><td><code>browser</code></td><td>string</td><td>No</td><td>Parsed from User-Agent in API</td></tr>
+    <tr><td><code>country</code></td><td>ISO 3166-1 alpha-2</td><td>No</td><td>Geo-IP enriched at ingestion</td></tr>
+    <tr><td><code>region</code></td><td>string</td><td>Yes</td><td>Geo-IP enriched at ingestion</td></tr>
+    <tr><td><code>product_id</code></td><td>string</td><td>Yes</td><td>Present for product/cart/purchase events</td></tr>
+    <tr><td><code>category_id</code></td><td>string</td><td>Yes</td><td></td></tr>
+    <tr><td><code>campaign_id</code></td><td>string</td><td>Yes</td><td>UTM campaign parameter</td></tr>
+    <tr><td><code>search_query</code></td><td>string</td><td>Yes</td><td>PII-masked in Silver</td></tr>
+    <tr><td><code>cart_id</code></td><td>string</td><td>Yes</td><td></td></tr>
+  </table>
+
+  <h3>Behavior-Specific Fields</h3>
+  <table>
+    <tr><th>Field</th><th>Type</th><th>Present on</th></tr>
+    <tr><td><code>click_target</code></td><td>string</td><td>banner_clicked, recommendation_clicked</td></tr>
+    <tr><td><code>dwell_time_ms</code></td><td>int64</td><td>page_view, product_view</td></tr>
+    <tr><td><code>scroll_depth_pct</code></td><td>float [0–100]</td><td>page_view, product_view</td></tr>
+    <tr><td><code>viewport_size</code></td><td>string "WxH"</td><td>all</td></tr>
+    <tr><td><code>interaction_metadata</code></td><td>JSON object</td><td>extensible per event_type</td></tr>
+  </table>
+
+  <h3>Event Types</h3>
+  <table>
+    <tr><th>event_type</th><th>Trigger</th><th>Key fields required</th></tr>
+    <tr><td><code>page_view</code></td><td>Any page load</td><td>page_url, dwell_time_ms</td></tr>
+    <tr><td><code>product_view</code></td><td>PDP render</td><td>product_id, category_id, dwell_time_ms</td></tr>
+    <tr><td><code>search</code></td><td>Search submit</td><td>search_query</td></tr>
+    <tr><td><code>add_to_cart</code></td><td>Cart add</td><td>product_id, cart_id</td></tr>
+    <tr><td><code>remove_from_cart</code></td><td>Cart remove</td><td>product_id, cart_id</td></tr>
+    <tr><td><code>checkout_started</code></td><td>Checkout step 1</td><td>cart_id</td></tr>
+    <tr><td><code>purchase_completed</code></td><td>Order confirmed</td><td>cart_id, product_id</td></tr>
+    <tr><td><code>banner_clicked</code></td><td>Banner/hero click</td><td>click_target, campaign_id</td></tr>
+    <tr><td><code>recommendation_clicked</code></td><td>Rec widget click</td><td>click_target, product_id</td></tr>
+  </table>
+
+  <h3>Versioning &amp; Compatibility Rules</h3>
+  <ul>
+    <li>Schema Registry compatibility mode: <strong>BACKWARD</strong> (new consumers can read old messages)</li>
+    <li>Adding optional fields with defaults: allowed without version bump</li>
+    <li>Adding required fields or removing any field: major version increment, migration plan required</li>
+    <li>Schema subject naming: <code>clickstream-event-value</code></li>
+    <li>All schemas pinned by schema ID in Kafka message headers</li>
+  </ul>
+
+  <hr class="divider" />
+
+  
+  <h2><span class="section-num">2 </span>Front-End Event Collection SDK</h2>
+
+  <h3>Technology</h3>
+  <p><span class="badge badge-blue">JavaScript (browser)</span><span class="badge badge-blue">Swift (iOS)</span><span class="badge badge-blue">Kotlin (Android)</span></p>
+
+  <h3>Web SDK Behaviour</h3>
+  <ul>
+    <li>Auto-generates <code>anonymous_id</code> on first load; persists in <code>localStorage</code></li>
+    <li>Buffers events in memory queue (max 50 events or 5 seconds, whichever first)</li>
+    <li>Flushes via <strong>Beacon API</strong> (<code>navigator.sendBeacon</code>) on page unload; falls back to <code>fetch</code></li>
+    <li>Compresses payloads with <code>CompressionStream</code> (gzip) where supported</li>
+    <li>Retry on failure: exponential backoff — 1s, 2s, 4s, 8s — max 4 retries; failed events persist in <code>sessionStorage</code></li>
+    <li>Never sends directly to Kafka; always POST to ingestion API</li>
+  </ul>
+
+  <h3>Transport Endpoint</h3>
+  <pre>POST /events/batch
+Content-Type: application/json
+Authorization: Bearer &lt;sdk_token&gt;
+
+{
+  "sdk_version": "1.0.0",
+  "sent_at": "2025-11-09T14:32:00Z",
+  "events": [ { ...event }, ... ]
+}</pre>
+
+  <h3>Mobile SDK</h3>
+  <ul>
+    <li>Same event model and batching strategy as web SDK</li>
+    <li>Background upload using <code>URLSession.background</code> (iOS) / <code>WorkManager</code> (Android)</li>
+    <li>Persists queue to SQLite on device; survives app kill</li>
+    <li>Max batch: 100 events or 10 seconds</li>
+  </ul>
+
+  <hr class="divider" />
+
+  
+  <h2><span class="section-num">3 </span>Edge Ingestion API</h2>
+
+  <h3>Technology</h3>
+  <p><span class="badge badge-blue">FastAPI</span><span class="badge badge-green">NGINX (ingress)</span><span class="badge badge-purple">Kubernetes (deployment)</span></p>
+
+  <h3>API Responsibilities (in order)</h3>
+  <ol>
+    <li><strong>Auth validation</strong> — Bearer token checked against token store (Redis); reject 401 immediately</li>
+    <li><strong>Rate limiting</strong> — 10 000 events/s per IP via NGINX <code>limit_req</code>; 429 with Retry-After header</li>
+    <li><strong>Payload validation</strong> — Pydantic v2 against event contract; batch rejected 422 if any event malformed (configurable: fail-fast or quarantine-bad)</li>
+    <li><strong>Correlation ID</strong> — <code>X-Correlation-Id</code> generated (UUID v4) and attached to every event and response</li>
+    <li><strong>Geo-IP enrichment</strong> — MaxMind GeoLite2 database lookup; appends <code>country</code>, <code>region</code>, <code>city</code></li>
+    <li><strong>User-Agent parsing</strong> — <code>ua-parser2</code>; appends <code>device_type</code>, <code>os</code>, <code>browser</code></li>
+    <li><strong>Ingestion timestamp</strong> — server-side UTC appended as <code>ingestion_timestamp</code></li>
+    <li><strong>Schema Registry check</strong> — schema ID resolved before Kafka publish</li>
+    <li><strong>Async Kafka publish</strong> — non-blocking; partition key = <code>session_id</code>; topic = <code>clickstream.raw</code></li>
+    <li><strong>Invalid routing</strong> — failed validation events published to <code>clickstream.invalid</code></li>
+  </ol>
+
+  <h3>Kafka Topics Published By API</h3>
+  <table>
+    <tr><th>Topic</th><th>Content</th><th>Partition key</th></tr>
+    <tr><td><code>clickstream.raw</code></td><td>All valid enriched events</td><td>session_id</td></tr>
+    <tr><td><code>clickstream.invalid</code></td><td>Malformed / schema-failing events</td><td>anonymous_id</td></tr>
+    <tr><td><code>clickstream.retry</code></td><td>Kafka publish failures queued for replay</td><td>session_id</td></tr>
+  </table>
+
+  <h3>Kubernetes Resources</h3>
+  <table>
+    <tr><th>Resource</th><th>Value</th></tr>
+    <tr><td>Replicas (baseline)</td><td>3</td></tr>
+    <tr><td>Autoscale target</td><td>CPU 70% or ingestion QPS &gt; 5 000/pod</td></tr>
+    <tr><td>Max replicas</td><td>20</td></tr>
+    <tr><td>Request CPU / Mem</td><td>250m / 256Mi</td></tr>
+    <tr><td>Limit CPU / Mem</td><td>1000m / 512Mi</td></tr>
+    <tr><td>Liveness probe</td><td>GET /healthz every 10s</td></tr>
+    <tr><td>Readiness probe</td><td>GET /readyz (Kafka reachable) every 5s</td></tr>
+  </table>
+
+  <hr class="divider" />
+
+  
+  <h2><span class="section-num">4 </span>Kafka Streaming Backbone</h2>
+
+  <h3>Cluster Configuration</h3>
+  <table>
+    <tr><th>Parameter</th><th>Value</th><th>Rationale</th></tr>
+    <tr><td>Brokers</td><td>3 minimum (5 for Prime Day)</td><td>Replication factor 3 requires min 3</td></tr>
+    <tr><td>Replication factor</td><td>3</td><td>Tolerate 1 broker loss</td></tr>
+    <tr><td>Min in-sync replicas</td><td>2</td><td>Durability guarantee</td></tr>
+    <tr><td>Compression</td><td>zstd</td><td>Best ratio for JSON payloads</td></tr>
+    <tr><td>Retention (raw)</td><td>7 days</td><td>Replay window for incidents</td></tr>
+    <tr><td>Retention (enriched)</td><td>3 days</td><td>Downstream has Delta Lake copy</td></tr>
+    <tr><td>Idempotent producers</td><td>Enabled</td><td>Exactly-once on producer side</td></tr>
+    <tr><td>Transactions</td><td>Enabled (EOS)</td><td>Exactly-once semantics end-to-end</td></tr>
+  </table>
+
+  <h3>Topic Inventory</h3>
+  <table>
+    <tr><th>Topic</th><th>Partitions</th><th>Retention</th><th>Consumer groups</th></tr>
+    <tr><td><code>clickstream.raw</code></td><td>32</td><td>7 days</td><td>spark-bronze, audit-logger</td></tr>
+    <tr><td><code>clickstream.enriched</code></td><td>32</td><td>3 days</td><td>spark-silver</td></tr>
+    <tr><td><code>clickstream.sessions</code></td><td>16</td><td>3 days</td><td>spark-gold, recommendation-svc</td></tr>
+    <tr><td><code>clickstream.analytics</code></td><td>16</td><td>1 day</td><td>clickhouse-sink, grafana-live</td></tr>
+    <tr><td><code>clickstream.invalid</code></td><td>8</td><td>30 days</td><td>dlq-inspector</td></tr>
+    <tr><td><code>clickstream.deadletter</code></td><td>8</td><td>30 days</td><td>dlq-inspector, replay-tool</td></tr>
+    <tr><td><code>clickstream.retry</code></td><td>8</td><td>7 days</td><td>ingestion-api-retry</td></tr>
+  </table>
+
+  <hr class="divider" />
+
+  
+  <h2><span class="section-num">5 </span>Stream Processing Engine (Spark Structured Streaming)</h2>
+
+  <h3>Technology</h3>
+  <p><span class="badge badge-orange">Apache Spark 3.5</span><span class="badge badge-blue">Delta Lake 3.x</span><span class="badge badge-purple">Kubernetes (spark-on-k8s operator)</span></p>
+
+  <h3>Bronze Streaming Job</h3>
+  <table>
+    <tr><th>Attribute</th><th>Value</th></tr>
+    <tr><td>Input topic</td><td><code>clickstream.raw</code></td></tr>
+    <tr><td>Output path</td><td><code>delta/bronze/clickstream</code> (append-only, immutable)</td></tr>
+    <tr><td>Trigger</td><td>processingTime 10 seconds</td></tr>
+    <tr><td>Checkpoint</td><td><code>state/checkpoints/bronze</code> (object storage)</td></tr>
+    <tr><td>Actions</td><td>Write raw bytes + append <code>ingestion_timestamp</code>, <code>kafka_offset</code>, <code>kafka_partition</code></td></tr>
+    <tr><td>Malformed events</td><td>Sidecar write to <code>delta/bronze/clickstream_malformed</code></td></tr>
+    <tr><td>Schema evolution</td><td>Delta Lake <code>mergeSchema = true</code> (additive only)</td></tr>
+  </table>
+
+  <h3>Silver Streaming Job</h3>
+  <table>
+    <tr><th>Step</th><th>Implementation</th></tr>
+    <tr><td>Schema enforcement</td><td>Pydantic parse; malformed → <code>clickstream.deadletter</code></td></tr>
+    <tr><td>Deduplication</td><td>Stateful <code>dropDuplicates(["event_id"])</code> with watermark; state TTL = 1 hour</td></tr>
+    <tr><td>Bot filtering</td><td>Device type == "bot" OR user-agent blocklist → drop</td></tr>
+    <tr><td>URL parsing</td><td>Split <code>page_url</code> into host, path, query params</td></tr>
+    <tr><td>Device normalisation</td><td>Standardise OS/browser strings to canonical values</td></tr>
+    <tr><td>PII masking</td><td>SHA-256 hash <code>user_id</code> in analytics columns; <code>search_query</code> keyword-extract only</td></tr>
+    <tr><td>Late-event handling</td><td>Watermark = event_timestamp - 30 minutes; late events accepted up to watermark</td></tr>
+    <tr><td>Output path</td><td><code>delta/silver/clickstream_clean</code></td></tr>
+    <tr><td>Checkpoint</td><td><code>state/checkpoints/silver</code></td></tr>
+  </table>
+
+  <hr class="divider" />
+
+  
+  <h2><span class="section-num">6 </span>Sessionization Engine</h2>
+
+  <h3>Session Rules</h3>
+  <ul>
+    <li>New session triggered after <strong>30 minutes of inactivity</strong></li>
+    <li>New session triggered on authentication state change (anonymous → authenticated)</li>
+    <li>Anonymous-to-authenticated stitching: when <code>user_id</code> appears, back-fill session with user identity</li>
+    <li>Session state persisted in Spark checkpoint storage (RocksDB state backend)</li>
+  </ul>
+
+  <h3>Session Output Schema</h3>
+  <pre>session_id            STRING  (UUID)
+user_id               STRING  (hashed for analytics)
+anonymous_id          STRING
+first_event           TIMESTAMP
+last_event            TIMESTAMP
+session_duration_sec  INT
+pages_visited         INT
+products_viewed       ARRAY&lt;STRING&gt;
+conversion_flag       BOOLEAN  (purchase_completed in session)
+abandonment_flag      BOOLEAN  (checkout_started but no purchase)
+ordered_event_array   ARRAY&lt;STRUCT&lt;event_type, timestamp, product_id&gt;&gt;
+device_type           STRING
+country               STRING
+campaign_id           STRING</pre>
+
+  <h3>Storage</h3>
+  <p><code>delta/gold/clickstream_sessions</code> — partitioned by <code>date(first_event)</code></p>
+
+  <hr class="divider" />
+
+  
+  <h2><span class="section-num">7 </span>Click-Path Reconstruction</h2>
+
+  <h3>Derived Outputs</h3>
+  <table>
+    <tr><th>Output table</th><th>Description</th><th>Refresh</th></tr>
+    <tr><td><code>top_paths_5m</code></td><td>Top 100 event-sequence paths in last 5 minutes</td><td>5 min micro-batch</td></tr>
+    <tr><td><code>abandonment_hotspots</code></td><td>Pages/steps with highest drop-off rate</td><td>5 min</td></tr>
+    <tr><td><code>search_to_purchase_rate</code></td><td>% of search sessions that convert</td><td>5 min</td></tr>
+    <tr><td><code>recommendation_ctr</code></td><td>Click-through rate per recommendation position</td><td>1 min</td></tr>
+    <tr><td><code>category_conversion_rates</code></td><td>View → add-to-cart → purchase per category</td><td>5 min</td></tr>
+  </table>
+
+  <h3>Advanced Processing</h3>
+  <ul>
+    <li><strong>Markov chain transitions</strong> — first-order transition probability matrix between event types; updated every 15 minutes; stored in Delta Lake and Redis</li>
+    <li><strong>Journey embeddings</strong> — event-type sequences encoded via sliding window; fed to recommendation model</li>
+    <li><strong>Sequence scoring</strong> — likelihood score for a session reaching conversion; used for real-time intervention triggers</li>
+    <li><strong>Funnel progression</strong> — page_view → product_view → add_to_cart → checkout_started → purchase_completed step counts and drop rates</li>
+  </ul>
+
+  <hr class="divider" />
+
+  
+  <h2><span class="section-num">8 </span>Real-Time Analytics Serving (ClickHouse)</h2>
+
+  <h3>Why ClickHouse</h3>
+  <p>Column-oriented OLAP engine. Handles billions of rows with sub-second aggregation. Supports real-time inserts via Kafka Connect sink. Not a transactional database — serving layer only.</p>
+
+  <h3>Core Tables</h3>
+  <table>
+    <tr><th>Table</th><th>Engine</th><th>Partition by</th><th>Primary key</th></tr>
+    <tr><td><code>live_user_sessions</code></td><td>ReplicatedMergeTree</td><td>toDate(first_event)</td><td>(session_id, first_event)</td></tr>
+    <tr><td><code>click_funnels</code></td><td>ReplicatedMergeTree</td><td>toDate(event_time)</td><td>(funnel_step, event_time)</td></tr>
+    <tr><td><code>product_heatmaps</code></td><td>ReplicatedMergeTree</td><td>toDate(event_time)</td><td>(product_id, event_time)</td></tr>
+    <tr><td><code>campaign_performance</code></td><td>ReplicatedMergeTree</td><td>toDate(event_time)</td><td>(campaign_id, event_time)</td></tr>
+    <tr><td><code>real_time_revenue</code></td><td>ReplicatedMergeTree</td><td>toDate(event_time)</td><td>(event_time)</td></tr>
+  </table>
+
+  <h3>Materialized Views (pre-aggregated rollups)</h3>
+  <ul>
+    <li><code>mv_revenue_per_minute</code> — rolling 1-min revenue sum</li>
+    <li><code>mv_active_sessions_1m</code> — sessions with last_event within 1 minute</li>
+    <li><code>mv_funnel_hourly</code> — hourly funnel step counts</li>
+    <li><code>mv_top_products_5m</code> — top 50 viewed products in last 5 minutes</li>
+  </ul>
+
+  <h3>Kafka → ClickHouse</h3>
+  <p>Kafka Connect <code>clickhouse-kafka-connect</code> sink connector consumes <code>clickstream.analytics</code>; batch size 10 000 rows; flush interval 1 second.</p>
+
+  <hr class="divider" />
+
+  
+  <h2><span class="section-num">9 </span>Dashboard Layer</h2>
+
+  <h3>Tooling Split</h3>
+  <table>
+    <tr><th>Audience</th><th>Tool</th><th>Data source</th><th>Refresh</th></tr>
+    <tr><td>Operations / SRE</td><td>Grafana</td><td>ClickHouse, Prometheus</td><td>5–15 seconds</td></tr>
+    <tr><td>Business / Merchandising</td><td>Power BI / Superset</td><td>ClickHouse materialized views</td><td>1–5 minutes</td></tr>
+    <tr><td>Product / Analytics</td><td>Apache Superset</td><td>Delta Lake (via Trino)</td><td>On-demand</td></tr>
+  </table>
+
+  <h3>Operational Dashboard Widgets (Grafana)</h3>
+  <ul>
+    <li>Active users (last 5 min) — <code>mv_active_sessions_1m</code></li>
+    <li>Concurrent sessions — live session count</li>
+    <li>Revenue / minute — <code>mv_revenue_per_minute</code></li>
+    <li>Checkout drop-off rate — funnel step 3 → 4 delta</li>
+    <li>Product demand spikes — top products % change vs. 24h average</li>
+    <li>Click-through rates — recommendation_ctr rolling 5 min</li>
+    <li>Funnel completion % — per campaign and organic</li>
+  </ul>
+
+  <h3>Alert Thresholds</h3>
+  <table>
+    <tr><th>Metric</th><th>Warning</th><th>Critical</th></tr>
+    <tr><td>Events/sec below baseline</td><td>&lt; 50% of p50</td><td>&lt; 10% of p50</td></tr>
+    <tr><td>Dead-letter volume</td><td>&gt; 100/min</td><td>&gt; 1 000/min</td></tr>
+    <tr><td>Kafka consumer lag</td><td>&gt; 10 000 msgs</td><td>&gt; 100 000 msgs</td></tr>
+    <tr><td>Sessionization latency p99</td><td>&gt; 10s</td><td>&gt; 60s</td></tr>
+    <tr><td>Dashboard query latency p99</td><td>&gt; 500ms</td><td>&gt; 2s</td></tr>
+  </table>
+
+  <hr class="divider" />
+
+  
+  <h2><span class="section-num">10 </span>Recommendation &amp; Personalization Pipeline</h2>
+
+  <h3>Streaming Feature Generation</h3>
+  <table>
+    <tr><th>Feature</th><th>Source</th><th>Store</th><th>TTL</th></tr>
+    <tr><td>Recently viewed items</td><td>product_view events</td><td>Redis sorted set</td><td>24 hours</td></tr>
+    <tr><td>Category affinity scores</td><td>Markov transitions</td><td>Redis hash</td><td>7 days</td></tr>
+    <tr><td>Co-occurrence matrix</td><td>Session product arrays</td><td>Redis / Delta Lake</td><td>Rolling 30 days</td></tr>
+    <tr><td>Real-time recommendations</td><td>Sequence scoring output</td><td>Redis list (top 20)</td><td>15 minutes</td></tr>
+  </table>
+
+  <h3>Online Feature Store API</h3>
+  <pre>GET /features/user/{user_id}
+GET /features/session/{session_id}
+GET /recommendations/{user_id}?context=cart&amp;limit=10</pre>
+  <p>Served from Redis; &lt; 5ms p99 latency target. Fallback to collaborative-filtering batch model when Redis miss.</p>
+
+  <hr class="divider" />
+
+  
+  <h2><span class="section-num">11 </span>Observability</h2>
+
+  <h3>Instrumentation Stack</h3>
+  <p><span class="badge badge-green">Prometheus</span><span class="badge badge-green">Grafana</span><span class="badge badge-blue">OpenTelemetry</span><span class="badge badge-blue">Jaeger (tracing)</span></p>
+
+  <h3>Key Metrics Emitted by Each Service</h3>
+  <table>
+    <tr><th>Service</th><th>Metric</th></tr>
+    <tr><td>Ingestion API</td><td>events_received_total, events_invalid_total, kafka_publish_latency_ms, rate_limited_total</td></tr>
+    <tr><td>Spark Bronze</td><td>events_written_total, malformed_total, processing_lag_sec</td></tr>
+    <tr><td>Spark Silver</td><td>events_deduped_total, bot_filtered_total, late_events_total</td></tr>
+    <tr><td>Sessionization</td><td>sessions_opened_total, sessions_closed_total, sessionization_latency_p99</td></tr>
+    <tr><td>ClickHouse sink</td><td>rows_inserted_total, insert_latency_ms, connector_lag</td></tr>
+    <tr><td>Kafka</td><td>consumer_lag (per group/partition), broker_bytes_in/out, under_replicated_partitions</td></tr>
+  </table>
+
+  <h3>Distributed Tracing</h3>
+  <p>Every event carries a <code>trace_id</code> from ingestion API through to ClickHouse write. OpenTelemetry SDK in FastAPI and Spark jobs; traces exported to Jaeger. Enables end-to-end latency profiling per event.</p>
+
+  <hr class="divider" />
+
+  
+  <h2><span class="section-num">12 </span>Reliability &amp; Failure Handling</h2>
+
+  <h3>Dead-Letter Queue Strategy</h3>
+  <ul>
+    <li>Schema failures → <code>clickstream.invalid</code> (inspect and fix schema, replay)</li>
+    <li>Processing failures after 3 retries → <code>clickstream.deadletter</code> (isolated, alerting)</li>
+    <li>Poison messages tagged with <code>failure_reason</code> and <code>original_offset</code> headers</li>
+    <li>DLQ inspector service monitors both topics; auto-alerts on sustained volume</li>
+  </ul>
+
+  <h3>Replay Tooling</h3>
+  <ul>
+    <li>Spark jobs use checkpointed offsets — restart from last committed offset automatically</li>
+    <li>Manual replay: <code>replay-tool --topic clickstream.raw --from-offset 12345 --to-offset 99999</code></li>
+    <li>Bronze Delta Lake is immutable — any Silver/Gold job can be re-run from Bronze without data loss</li>
+  </ul>
+
+  <h3>Chaos Scenarios &amp; Mitigations</h3>
+  <table>
+    <tr><th>Scenario</th><th>Mitigation</th></tr>
+    <tr><td>Kafka broker failure</td><td>Replication factor 3; min ISR 2; producers retry with backoff</td></tr>
+    <tr><td>Spark job crash</td><td>Checkpointed state; k8s restarts pod; resumes from last committed offset</td></tr>
+    <tr><td>Out-of-order burst</td><td>30-min watermark absorbs late events; extreme lates to dead-letter</td></tr>
+    <tr><td>Partition reassignment</td><td>Session_id partitioning ensures no cross-partition journey splits</td></tr>
+    <tr><td>ClickHouse unavailable</td><td>Kafka sink connector buffers; replays when ClickHouse recovers</td></tr>
+  </table>
+
+  <hr class="divider" />
+
+  
+  <h2><span class="section-num">13 </span>Storage &amp; Retention Policy</h2>
+  <table>
+    <tr><th>Tier</th><th>Storage</th><th>Retention</th><th>Contents</th></tr>
+    <tr><td><strong>Hot</strong></td><td>ClickHouse</td><td>7–30 days</td><td>Pre-aggregated analytics, live sessions</td></tr>
+    <tr><td><strong>Warm</strong></td><td>Delta Lake silver/gold</td><td>90–180 days</td><td>Clean events, sessions, click-paths</td></tr>
+    <tr><td><strong>Cold</strong></td><td>Object storage (COS/S3)</td><td>7 years</td><td>Compressed Bronze snapshots (zstd parquet)</td></tr>
+    <tr><td><strong>Archive</strong></td><td>Object storage (Glacier tier)</td><td>Indefinite</td><td>Yearly compliance snapshots</td></tr>
+  </table>
+  <ul>
+    <li>Delta Lake VACUUM runs weekly; retains 7 days of history for time-travel queries</li>
+    <li>Archived Bronze is replayable — any downstream job can be re-run from cold storage</li>
+    <li>Lifecycle policies enforced via object storage bucket rules (auto-transition warm → cold at 180 days)</li>
+  </ul>
+
+  <hr class="divider" />
+
+  
+  <h2><span class="section-num">14 </span>Security &amp; Governance</h2>
+
+  <h3>Access Control</h3>
+  <table>
+    <tr><th>Role</th><th>Kafka access</th><th>Delta Lake access</th><th>ClickHouse access</th></tr>
+    <tr><td>ingestion-api</td><td>Produce: raw, invalid, retry</td><td>None</td><td>None</td></tr>
+    <tr><td>spark-bronze</td><td>Consume: raw</td><td>Write: bronze</td><td>None</td></tr>
+    <tr><td>spark-silver</td><td>Consume: enriched</td><td>Read: bronze; Write: silver</td><td>None</td></tr>
+    <tr><td>spark-gold</td><td>Consume: sessions; Produce: analytics</td><td>Read: silver; Write: gold</td><td>None</td></tr>
+    <tr><td>clickhouse-sink</td><td>Consume: analytics</td><td>None</td><td>Write: all tables</td></tr>
+    <tr><td>dashboard-reader</td><td>None</td><td>None</td><td>Read: all tables</td></tr>
+    <tr><td>recommendation-svc</td><td>Consume: sessions</td><td>Read: gold</td><td>Read: product_heatmaps</td></tr>
+  </table>
+
+  <h3>PII &amp; GDPR</h3>
+  <ul>
+    <li><code>user_id</code> stored as SHA-256 hash in all analytics columns; mapping table encrypted at rest (AES-256)</li>
+    <li><code>search_query</code> keyword-extracted only; raw query never persisted past Bronze</li>
+    <li>GDPR deletion workflow: event deletion request triggers Bronze → Silver → Gold → ClickHouse scan; user hash zeroed; audit log written</li>
+    <li>Consent flag carried on every event; non-consented events routed to consent-filtered topic, not analytics</li>
+    <li>Schema lineage tracked in Atlas / DataHub; every column tagged with data classification (PII / non-PII)</li>
+  </ul>
+
+  <h3>Encryption</h3>
+  <ul>
+    <li>All Kafka traffic: TLS 1.3</li>
+    <li>Delta Lake at rest: AES-256 via object storage server-side encryption</li>
+    <li>ClickHouse at rest: encrypted volumes</li>
+    <li>Service-to-service: mTLS via Istio service mesh</li>
+  </ul>
+
+  <hr class="divider" />
+
+  
+  <h2><span class="section-num">15 </span>Deployment Architecture</h2>
+
+  <h3>Platform: Kubernetes / Red Hat OpenShift</h3>
+  <table>
+    <tr><th>Service</th><th>Deployment type</th><th>Base replicas</th><th>Autoscale trigger</th></tr>
+    <tr><td>Ingestion API (FastAPI)</td><td>Deployment</td><td>3</td><td>QPS &gt; 5 000/pod</td></tr>
+    <tr><td>Kafka brokers</td><td>StatefulSet</td><td>3 (5 Prime Day)</td><td>Manual</td></tr>
+    <tr><td>Schema Registry</td><td>Deployment</td><td>2</td><td>CPU 70%</td></tr>
+    <tr><td>Spark Bronze job</td><td>SparkApplication (operator)</td><td>2 executors</td><td>Kafka lag &gt; 50 000</td></tr>
+    <tr><td>Spark Silver job</td><td>SparkApplication</td><td>4 executors</td><td>Kafka lag &gt; 20 000</td></tr>
+    <tr><td>Spark Gold/Session job</td><td>SparkApplication</td><td>4 executors</td><td>Kafka lag &gt; 10 000</td></tr>
+    <tr><td>ClickHouse</td><td>StatefulSet</td><td>3 shards × 2 replicas</td><td>CPU 70%</td></tr>
+    <tr><td>Redis</td><td>StatefulSet (Sentinel)</td><td>3</td><td>Memory 80%</td></tr>
+    <tr><td>Grafana</td><td>Deployment</td><td>2</td><td>—</td></tr>
+    <tr><td>Prometheus</td><td>StatefulSet</td><td>1 (HA: 2)</td><td>—</td></tr>
+  </table>
+
+  <div class="note">All container images sourced from <code>registry.redhat.io</code> (UBI9 minimal base). No containers run as root. All secrets managed via HashiCorp Vault / IBM Key Protect — never in ConfigMaps or environment variables.</div>
+
+  <hr class="divider" />
+
+  
+  <h2><span class="section-num">16 </span>Recommended Implementation Order</h2>
+  <ol>
+    <li><strong>Event contract</strong> — Pydantic models + Avro schemas + Schema Registry setup. Nothing else can be built without this.</li>
+    <li><strong>Edge Ingestion API</strong> — FastAPI service, runs locally with a mock Kafka producer for dev/test.</li>
+    <li><strong>JavaScript SDK</strong> — integrates with ingestion API; drives all web traffic.</li>
+    <li><strong>Kafka cluster + topics</strong> — baseline 3-broker cluster; configure all topics and ACLs.</li>
+    <li><strong>Spark Bronze job</strong> — raw events land in Delta Lake; proves end-to-end connectivity.</li>
+    <li><strong>Spark Silver job</strong> — dedup, bot filter, PII mask, URL parse.</li>
+    <li><strong>Sessionization engine</strong> — stateful windowing; produces session objects.</li>
+    <li><strong>ClickHouse + Kafka Connect sink</strong> — analytics data flowing into serving layer.</li>
+    <li><strong>Grafana dashboards</strong> — operational visibility from day one of data flowing.</li>
+    <li><strong>Click-path reconstruction + Markov chains</strong> — behavioral analytics layer.</li>
+    <li><strong>Recommendation pipeline</strong> — Redis feature store; online serving API.</li>
+    <li><strong>GDPR deletion workflow + schema lineage</strong> — governance layer, required before production traffic.</li>
+  </ol>
+
+  <footer>Made with IBM Bob</footer>
+</div>
+</body>
+</html>

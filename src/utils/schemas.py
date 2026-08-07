@@ -1,8 +1,8 @@
 """Pydantic schema contracts for Bronze → Silver validation."""
 from __future__ import annotations
 from datetime import date
-from typing import Optional
-from pydantic import BaseModel, field_validator, ConfigDict
+from typing import Annotated, Literal, Optional
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 
 class OrderRow(BaseModel):
@@ -12,31 +12,14 @@ class OrderRow(BaseModel):
     customer_id: str
     product_id: str
     order_date: date
-    quantity: int
-    unit_price: float
-    status: str
+    quantity: Annotated[int, Field(gt=0)]
+    unit_price: Annotated[float, Field(ge=0)]
+    status: Literal["pending", "shipped", "delivered", "cancelled", "returned"]
 
-    @field_validator("quantity")
+    @field_validator("status", mode="before")
     @classmethod
-    def qty_positive(cls, v: int) -> int:
-        if v <= 0:
-            raise ValueError(f"quantity must be > 0, got {v}")
-        return v
-
-    @field_validator("unit_price")
-    @classmethod
-    def price_positive(cls, v: float) -> float:
-        if v < 0:
-            raise ValueError(f"unit_price must be >= 0, got {v}")
-        return v
-
-    @field_validator("status")
-    @classmethod
-    def valid_status(cls, v: str) -> str:
-        allowed = {"pending", "shipped", "delivered", "cancelled", "returned"}
-        if v.lower() not in allowed:
-            raise ValueError(f"status '{v}' not in {allowed}")
-        return v.lower()
+    def normalise_status(cls, v: str) -> str:
+        return v.lower() if isinstance(v, str) else v
 
 
 class CustomerRow(BaseModel):
@@ -61,13 +44,6 @@ class ProductRow(BaseModel):
     product_id: str
     name: str
     category: str
-    unit_cost: float
+    unit_cost: Annotated[float, Field(ge=0)]
     supplier_id: str
     updated_at: str  # ISO string from SQLite
-
-    @field_validator("unit_cost")
-    @classmethod
-    def cost_non_negative(cls, v: float) -> float:
-        if v < 0:
-            raise ValueError(f"unit_cost must be >= 0, got {v}")
-        return v

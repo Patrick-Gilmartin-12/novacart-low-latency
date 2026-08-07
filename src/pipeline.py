@@ -10,8 +10,10 @@ import argparse
 import json
 import sys
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+import pandas as pd
 
 from src.utils.config import Config
 from src.utils.logging_setup import get_logger, log_event
@@ -25,17 +27,20 @@ from src.transform.silver import (
     build_silver_products,
 )
 from src.transform.gold import (
+    build_dim_date,
     build_dim_product,
     build_dim_customer,
     build_fact_orders,
 )
+from src.utils.gold_health import run_gold_health_check
+from src.utils.schema_fingerprint import record_fingerprint
 
 
 def run_one_date(date_str: str, config: Config) -> dict:
     run_id = str(uuid.uuid4())
     logger = get_logger("novacart", config.logs)
     state = StateManager(config.state)
-    started_at = datetime.utcnow()
+    started_at = datetime.now(timezone.utc)
     stages: list[dict] = []
 
     log_event(logger, "INFO", "pipeline_start", run_id=run_id, date=date_str)
@@ -65,15 +70,27 @@ def run_one_date(date_str: str, config: Config) -> dict:
         stage("ingest_products",  lambda: ingest_products(
             config.landing_products_db, config.bronze, state, logger))
 
+        # ── Schema fingerprints (post-Bronze) ─────────────────────────────────
+        for source, bronze_path in [
+            ("orders",    config.bronze / "orders" / f"date={date_str}" / "data.parquet"),
+            ("customers", config.bronze / "customers" / "data.parquet"),
+            ("products",  config.bronze / "products" / "data.parquet"),
+        ]:
+            if bronze_path.exists():
+                cols = pd.read_parquet(bronze_path).columns.tolist()
+                record_fingerprint(source, cols, config.state, logger)
+
         # ── Silver ────────────────────────────────────────────────────────────
         stage("silver_orders",    lambda: build_silver_orders(
             date_str, config.bronze, config.silver, config.quarantine, logger))
         stage("silver_customers", lambda: build_silver_customers(
-            config.bronze, config.silver, config.quarantine, logger))
+            config.bronze, config.silver, config.quarantine, logger, date_str))
         stage("silver_products",  lambda: build_silver_products(
             config.bronze, config.silver, config.quarantine, logger))
 
         # ── Gold ──────────────────────────────────────────────────────────────
+        stage("dim_date",      lambda: build_dim_date(
+            config.gold, logger))
         stage("dim_product",   lambda: build_dim_product(
             config.silver, config.gold, logger))
         stage("dim_customer",  lambda: build_dim_customer(
@@ -85,13 +102,16 @@ def run_one_date(date_str: str, config: Config) -> dict:
 
         # ── Commit pending watermark only on full success ─────────────────────
         state.commit_watermark()
+        # ── Gold health check (post-Gold) ─────────────────────────────────────
+        stage("gold_health_check", lambda: run_gold_health_check(
+            date_str, config.gold, logger))
 
     except Exception as exc:
         status = "FAIL"
         error_msg = str(exc)
         state.discard_pending_watermark()
 
-    finished_at = datetime.utcnow()
+    finished_at = datetime.now(timezone.utc)
     metadata = {
         "run_id": run_id,
         "date": date_str,
