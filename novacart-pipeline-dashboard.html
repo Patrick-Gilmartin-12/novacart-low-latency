@@ -1,0 +1,263 @@
+
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>NovaCart Pipeline Dashboard</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    background: #e8f4fd;
+    color: #161616;
+  }
+
+  .topbar {
+    background: #0a1628;
+    color: #fff;
+    padding: 13px 28px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .topbar-title { font-size: 15px; font-weight: 600; color: #fff; }
+  .topbar-title span { color: #4fa3e0; }
+  .topbar-sub { font-size: 12px; color: #7eb8d4; margin-left: auto; }
+
+  .page { max-width: 780px; margin: 0 auto; padding: 28px 20px 56px; }
+
+  /* Cards */
+  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 32px; }
+  .card {
+    background: #fff;
+    border: 1px solid #c5dff0;
+    border-top: 3px solid #0f62fe;
+    padding: 18px 16px;
+  }
+  .card-label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #4a6fa5; }
+  .card-value { font-size: 28px; font-weight: 300; color: #0a1628; margin-top: 4px; }
+  .card-sub   { font-size: 11px; color: #4a6fa5; margin-top: 4px; }
+
+  .green  { color: #198038; }
+  .red    { color: #da1e28; }
+  .yellow { color: #8a6914; }
+  .blue   { color: #0f62fe; }
+
+  /* Section */
+  .section { margin-bottom: 28px; }
+  .section-title {
+    font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .07em;
+    color: #4a6fa5;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #c5dff0;
+  }
+
+  /* Alerts */
+  .alert {
+    display: flex; gap: 12px;
+    padding: 12px 14px; margin-bottom: 6px;
+    border-left: 3px solid;
+    background: #fff;
+    border-radius: 0 2px 2px 0;
+  }
+  .alert-warn  { border-color: #f1c21b; }
+  .alert-ok    { border-color: #198038; }
+  .alert-error { border-color: #da1e28; }
+  .alert-info  { border-color: #0f62fe; }
+  .alert-icon  { font-size: 15px; flex-shrink: 0; padding-top: 1px; }
+  .alert-title { font-weight: 600; font-size: 13px; }
+  .alert-desc  { font-size: 12px; color: #4a6fa5; margin-top: 2px; }
+
+  /* Table */
+  table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #c5dff0; }
+  th {
+    background: #dceefb;
+    font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .05em;
+    color: #0a3d6b; text-align: left;
+    padding: 8px 12px;
+    border-bottom: 1px solid #c5dff0;
+  }
+  td { padding: 9px 12px; font-size: 13px; border-bottom: 1px solid #eaf4fc; }
+  tr:last-child td { border-bottom: none; }
+  .mono { font-family: monospace; font-size: 11px; color: #4a6fa5; }
+
+  .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 2px; }
+  .badge-ok   { background: #defbe6; color: #198038; }
+  .badge-warn { background: #fcf4d6; color: #8a6914; }
+  .badge-fail { background: #fff1f1; color: #da1e28; }
+  .badge-info { background: #dceefb; color: #0a3d6b; }
+
+  /* Approval cards */
+  .approval {
+    background: #fff;
+    border: 1px solid #c5dff0;
+    border-left: 3px solid #0f62fe;
+    padding: 14px 16px; margin-bottom: 6px;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    border-radius: 0 2px 2px 0;
+  }
+  .approval.approved { border-left-color: #198038; }
+  .approval-name { font-weight: 600; font-size: 13px; color: #0a1628; }
+  .approval-meta { font-size: 12px; color: #4a6fa5; margin-top: 3px; }
+  .approval-blocked { font-size: 12px; color: #8a6914; margin-top: 4px; }
+
+  footer {
+    text-align: center; font-size: 12px; color: #4a6fa5;
+    margin-top: 40px; padding-top: 16px;
+    border-top: 1px solid #c5dff0;
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-title">Nova<span>Cart</span>  /  Pipeline Dashboard</div>
+  <div class="topbar-sub">Last run: 2026-08-07 13:45:46 UTC</div>
+</div>
+
+<div class="page">
+
+  
+  <div class="cards">
+    <div class="card">
+      <div class="card-label">Last Run</div>
+      <div class="card-value green" style="font-size:18px;font-weight:600;padding-top:6px">SUCCESS</div>
+      <div class="card-sub">2025-11-10 · 0.32s</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Dates Processed</div>
+      <div class="card-value">4</div>
+      <div class="card-sub">Nov 07 – Nov 10</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Quarantined Rows</div>
+      <div class="card-value red">7</div>
+      <div class="card-sub">orders: 4 · customers: 3</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Pending Approvals</div>
+      <div class="card-value blue">2</div>
+      <div class="card-sub">New products blocked</div>
+    </div>
+  </div>
+
+  
+  <div class="section">
+    <div class="section-title">Alerts</div>
+
+    <div class="alert alert-error">
+      <div class="alert-icon">⚠</div>
+      <div>
+        <div class="alert-title">Schema Drift — orders</div>
+        <div class="alert-desc">Unexpected column <code>discount_code</code> found in incoming data. Pipeline continued but downstream models may be affected.</div>
+      </div>
+    </div>
+
+    <div class="alert alert-warn">
+      <div class="alert-icon">⚠</div>
+      <div>
+        <div class="alert-title">High Quarantine Rate — customers (20%)</div>
+        <div class="alert-desc">CUST-005 blocked at Silver layer — reason: <code>invalid_email_format</code>. Threshold is 10%. Watermark was not advanced.</div>
+      </div>
+    </div>
+
+    <div class="alert alert-warn">
+      <div class="alert-icon">⚠</div>
+      <div>
+        <div class="alert-title">Row Rejected — orders (2025-11-07)</div>
+        <div class="alert-desc">ORD-004 quarantined — reason: <code>quantity_must_be_positive</code> (value was 0). Row did not reach Gold layer.</div>
+      </div>
+    </div>
+
+    <div class="alert alert-ok">
+      <div class="alert-icon">✔</div>
+      <div>
+        <div class="alert-title">Watermark Committed</div>
+        <div class="alert-desc">products_updated_at → 2025-11-05T11:15:00. Saved only after all stages passed. No pending file present.</div>
+      </div>
+    </div>
+  </div>
+
+  
+  <div class="section">
+    <div class="section-title">Silver Validation — Current Run</div>
+    <table>
+      <thead>
+        <tr><th>Source</th><th>Incoming</th><th>Passed</th><th>Quarantined</th><th>Reason</th><th>Watermark Safe</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>orders</td><td>2</td><td>2</td><td>0</td>
+          <td>—</td>
+          <td><span class="badge badge-ok">Yes</span></td>
+        </tr>
+        <tr>
+          <td>customers</td><td>5</td><td>4</td><td>1</td>
+          <td><span class="mono">invalid_email_format</span></td>
+          <td><span class="badge badge-ok">Yes</span></td>
+        </tr>
+        <tr>
+          <td>products</td><td>4</td><td>4</td><td>0</td>
+          <td>—</td>
+          <td><span class="badge badge-ok">Yes</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  
+  <div class="section">
+    <div class="section-title">New Product Integrations — Awaiting Approval</div>
+
+    <div class="approval">
+      <div>
+        <div class="approval-name">PROD-009 — Wireless Charging Pad</div>
+        <div class="approval-meta">Supplier: SUP-003 · unit_cost: $14.99 · First seen: 2026-08-07</div>
+        <div class="approval-blocked">Blocked from Gold layer until approved</div>
+      </div>
+      <span class="badge badge-warn">Pending</span>
+    </div>
+
+    <div class="approval">
+      <div>
+        <div class="approval-name">PROD-010 — Ergonomic Desk Mat</div>
+        <div class="approval-meta">Supplier: SUP-007 · unit_cost: $39.99 · First seen: 2026-08-07</div>
+        <div class="approval-blocked">Blocked from Gold layer until approved</div>
+      </div>
+      <span class="badge badge-warn">Pending</span>
+    </div>
+
+    <div class="approval approved">
+      <div>
+        <div class="approval-name">PROD-007 — Mechanical Keyboard</div>
+        <div class="approval-meta">Approved by r.lee@novacart.io · 2026-08-06 · Active in dim_product</div>
+      </div>
+      <span class="badge badge-ok">Approved</span>
+    </div>
+  </div>
+
+  
+  <div class="section">
+    <div class="section-title">Run History</div>
+    <table>
+      <thead>
+        <tr><th>Date</th><th>Status</th><th>Duration</th><th>Schema Drift</th><th>Quarantined</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>2025-11-10</td><td><span class="badge badge-ok">Success</span></td><td>0.32s</td><td>—</td><td>1</td></tr>
+        <tr><td>2025-11-09</td><td><span class="badge badge-ok">Success</span></td><td>0.27s</td><td>—</td><td>1</td></tr>
+        <tr><td>2025-11-08</td><td><span class="badge badge-ok">Success</span></td><td>0.35s</td><td>—</td><td>2</td></tr>
+        <tr><td>2025-11-07</td><td><span class="badge badge-ok">Success</span></td><td>1.50s</td><td><span class="badge badge-warn">Additive</span></td><td>2</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<footer>Made with IBM Bob</footer>
+</body>
+</html>
