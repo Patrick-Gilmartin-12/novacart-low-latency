@@ -25,6 +25,35 @@
   .topbar-name { font-size: 13px; color: #7eb8d4; }
   .topbar-ts { margin-left: auto; font-size: 11px; color: #7eb8d4; }
 
+  /* ── Search ── */
+  .search-wrap { position: relative; margin-left: auto; }
+  .search-input {
+    background: #1a3358; border: 1px solid #2a4f7a; color: #fff;
+    padding: 6px 12px 6px 32px; font-size: 13px; width: 220px;
+    border-radius: 3px; outline: none;
+  }
+  .search-input::placeholder { color: #7eb8d4; }
+  .search-input:focus { border-color: #0f62fe; background: #1e3d6e; }
+  .search-icon {
+    position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+    font-size: 13px; color: #7eb8d4; pointer-events: none;
+  }
+  .search-results {
+    display: none; position: absolute; top: calc(100% + 6px); right: 0;
+    width: 380px; background: #fff; border: 1px solid #c5dff0;
+    box-shadow: 0 4px 16px rgba(10,22,40,.15); z-index: 200; max-height: 360px; overflow-y: auto;
+  }
+  .search-results.open { display: block; }
+  .sr-empty { padding: 14px 16px; font-size: 13px; color: #4a6fa5; }
+  .sr-item {
+    padding: 10px 14px; border-bottom: 1px solid #eaf4fc; cursor: pointer;
+  }
+  .sr-item:last-child { border-bottom: none; }
+  .sr-item:hover { background: #dceefb; }
+  .sr-page { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #4a6fa5; margin-bottom: 2px; }
+  .sr-text { font-size: 13px; color: #0a1628; }
+  .sr-text mark { background: #bfdbfe; color: #0a1628; border-radius: 2px; padding: 0 2px; }
+
   /* ── Shell ── */
   .shell { display: flex; flex: 1; }
 
@@ -132,6 +161,11 @@
   <div class="topbar-divider"></div>
   <div class="topbar-name">Pipeline Observability</div>
   <div class="topbar-ts">Last run: 2026-08-07 13:45:46 UTC &nbsp;·&nbsp; Env: local</div>
+  <div class="search-wrap">
+    <span class="search-icon">⌕</span>
+    <input class="search-input" id="globalSearch" type="text" placeholder="Search alerts, runs, products…" autocomplete="off"/>
+    <div class="search-results" id="searchResults"></div>
+  </div>
 </div>
 
 <div class="shell">
@@ -462,19 +496,90 @@
   </div><!-- /main -->
 </div><!-- /shell -->
 
-<footer>Made with IBM Bob</footer>
-
 <script>
+  // ── Navigation ──
   const navItems = document.querySelectorAll('.nav-item[data-page]');
   const pages    = document.querySelectorAll('.section-page');
-  navItems.forEach(item => {
-    item.addEventListener('click', () => {
-      const target = item.dataset.page;
-      navItems.forEach(n => n.classList.remove('active'));
-      pages.forEach(p => p.classList.remove('active'));
-      item.classList.add('active');
-      document.getElementById('page-' + target).classList.add('active');
+  function showPage(target) {
+    navItems.forEach(n => n.classList.remove('active'));
+    pages.forEach(p => p.classList.remove('active'));
+    const navEl = document.querySelector(`.nav-item[data-page="${target}"]`);
+    if (navEl) navEl.classList.add('active');
+    const pageEl = document.getElementById('page-' + target);
+    if (pageEl) pageEl.classList.add('active');
+  }
+  navItems.forEach(item => item.addEventListener('click', () => showPage(item.dataset.page)));
+
+  // ── Search index ──
+  // Each entry: { page, pageLabel, text }
+  const INDEX = [];
+  document.querySelectorAll('.section-page').forEach(page => {
+    const pageId    = page.id.replace('page-', '');
+    const pageLabel = page.querySelector('.page-title')?.textContent.trim() || pageId;
+
+    // Alerts
+    page.querySelectorAll('.alert').forEach(el => {
+      const title = el.querySelector('.alert-title')?.textContent.trim() || '';
+      const desc  = el.querySelector('.alert-desc')?.textContent.trim()  || '';
+      if (title) INDEX.push({ page: pageId, pageLabel, text: title + ' — ' + desc, el });
     });
+
+    // Table rows
+    page.querySelectorAll('tbody tr').forEach(row => {
+      const text = Array.from(row.querySelectorAll('td')).map(td => td.textContent.trim()).join(' · ');
+      if (text.trim()) INDEX.push({ page: pageId, pageLabel, text, el: row });
+    });
+
+    // Approval cards
+    page.querySelectorAll('.approval').forEach(el => {
+      const name = el.querySelector('.approval-name')?.textContent.trim() || '';
+      const meta = el.querySelector('.approval-meta')?.textContent.trim()  || '';
+      if (name) INDEX.push({ page: pageId, pageLabel, text: name + ' — ' + meta, el });
+    });
+  });
+
+  function highlight(text, query) {
+    const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return text.replace(new RegExp(`(${escaped})`, 'gi'), '<mark>$1</mark>');
+  }
+
+  const searchInput   = document.getElementById('globalSearch');
+  const searchResults = document.getElementById('searchResults');
+
+  searchInput.addEventListener('input', () => {
+    const q = searchInput.value.trim().toLowerCase();
+    searchResults.innerHTML = '';
+    if (q.length < 2) { searchResults.classList.remove('open'); return; }
+
+    const hits = INDEX.filter(entry => entry.text.toLowerCase().includes(q)).slice(0, 12);
+
+    if (!hits.length) {
+      searchResults.innerHTML = `<div class="sr-empty">No results for "<strong>${q}</strong>"</div>`;
+    } else {
+      hits.forEach(hit => {
+        const div = document.createElement('div');
+        div.className = 'sr-item';
+        div.innerHTML = `<div class="sr-page">${hit.pageLabel}</div>
+                         <div class="sr-text">${highlight(hit.text.slice(0, 120), searchInput.value.trim())}</div>`;
+        div.addEventListener('click', () => {
+          showPage(hit.page);
+          searchResults.classList.remove('open');
+          searchInput.value = '';
+          setTimeout(() => {
+            hit.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            hit.el.style.outline = '2px solid #0f62fe';
+            setTimeout(() => hit.el.style.outline = '', 1800);
+          }, 100);
+        });
+        searchResults.appendChild(div);
+      });
+    }
+    searchResults.classList.add('open');
+  });
+
+  // Close on outside click
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.search-wrap')) searchResults.classList.remove('open');
   });
 </script>
 </body>
