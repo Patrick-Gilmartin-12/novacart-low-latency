@@ -1,6 +1,0 @@
-Limited Pipeline Visibility:
-1. python -m src.pipeline --date 2025-11-07
-2. Get-Content logs/pipeline.jsonl
-3. python -m src.pipeline --date 2025-11-07 --inspect
-
-- python -m src.pipeline --date 2025-11-10 --backfill 3

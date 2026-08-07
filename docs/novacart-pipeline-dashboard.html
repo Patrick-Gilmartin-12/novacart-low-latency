@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>NovaCart Pipeline Dashboard</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+    font-size: 14px; line-height: 1.6;
+    background: #e8f4fd; color: #161616;
+    display: flex; flex-direction: column; min-height: 100vh;
+  }
+
+  /* ── Top bar ── */
+  .topbar {
+    background: #0a1628; color: #fff;
+    padding: 0 24px; height: 48px;
+    display: flex; align-items: center; gap: 16px;
+    flex-shrink: 0; position: sticky; top: 0; z-index: 100;
+  }
+  .topbar-logo { font-size: 15px; font-weight: 700; color: #fff; }
+  .topbar-logo span { color: #4fa3e0; }
+  .topbar-divider { width: 1px; height: 20px; background: #2a3f5f; }
+  .topbar-name { font-size: 13px; color: #7eb8d4; }
+  .topbar-ts { margin-left: auto; font-size: 11px; color: #7eb8d4; }
+
+  /* ── Search ── */
+  .search-wrap { position: relative; margin-left: auto; }
+  .search-input {
+    background: #1a3358; border: 1px solid #2a4f7a; color: #fff;
+    padding: 6px 12px 6px 32px; font-size: 13px; width: 220px;
+    border-radius: 3px; outline: none;
+  }
+  .search-input::placeholder { color: #7eb8d4; }
+  .search-input:focus { border-color: #0f62fe; background: #1e3d6e; }
+  .search-icon {
+    position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+    font-size: 13px; color: #7eb8d4; pointer-events: none;
+  }
+  .search-results {
+    display: none; position: absolute; top: calc(100% + 6px); right: 0;
+    width: 380px; background: #fff; border: 1px solid #c5dff0;
+    box-shadow: 0 4px 16px rgba(10,22,40,.15); z-index: 200; max-height: 360px; overflow-y: auto;
+  }
+  .search-results.open { display: block; }
+  .sr-empty { padding: 14px 16px; font-size: 13px; color: #4a6fa5; }
+  .sr-item {
+    padding: 10px 14px; border-bottom: 1px solid #eaf4fc; cursor: pointer;
+  }
+  .sr-item:last-child { border-bottom: none; }
+  .sr-item:hover { background: #dceefb; }
+  .sr-page { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #4a6fa5; margin-bottom: 2px; }
+  .sr-text { font-size: 13px; color: #0a1628; }
+  .sr-text mark { background: #bfdbfe; color: #0a1628; border-radius: 2px; padding: 0 2px; }
+
+  /* ── Shell ── */
+  .shell { display: flex; flex: 1; }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 200px; background: #0d2040;
+    flex-shrink: 0; padding: 20px 0;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .nav-group-label {
+    font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .1em;
+    color: #4a7aab; padding: 12px 20px 4px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 20px; font-size: 13px; color: #a8c8e8;
+    cursor: pointer; border-left: 3px solid transparent;
+    user-select: none;
+  }
+  .nav-item:hover { background: #1a3358; color: #fff; }
+  .nav-item.active { background: #1a3358; color: #fff; border-left-color: #0f62fe; }
+  .nav-icon { font-size: 14px; width: 16px; text-align: center; }
+
+  /* ── Main ── */
+  .main { flex: 1; overflow-y: auto; }
+  .section-page { display: none; padding: 28px 28px 56px; max-width: 860px; }
+  .section-page.active { display: block; }
+
+  .page-title { font-size: 20px; font-weight: 600; color: #0a1628; margin-bottom: 4px; }
+  .page-subtitle { font-size: 12px; color: #4a6fa5; margin-bottom: 24px; }
+
+  /* ── KPI Cards ── */
+  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px; }
+  .card { background: #fff; border: 1px solid #c5dff0; border-top: 3px solid #0f62fe; padding: 18px 16px; }
+  .card-label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #4a6fa5; }
+  .card-value { font-size: 26px; font-weight: 300; color: #0a1628; margin-top: 4px; }
+  .card-sub   { font-size: 11px; color: #4a6fa5; margin-top: 4px; }
+
+  /* ── Charts ── */
+  .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .chart-box { background: #fff; border: 1px solid #c5dff0; padding: 16px; margin-bottom: 12px; }
+  .chart-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #0a3d6b; margin-bottom: 12px; }
+
+  /* ── Section ── */
+  .sec { margin-bottom: 28px; }
+  .sec-title {
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .08em;
+    color: #4a6fa5; margin-bottom: 10px;
+    padding-bottom: 6px; border-bottom: 2px solid #c5dff0;
+  }
+
+  /* ── Alerts ── */
+  .alert {
+    display: flex; gap: 12px; padding: 12px 14px;
+    margin-bottom: 6px; border-left: 3px solid;
+    background: #fff; border-radius: 0 2px 2px 0;
+  }
+  .alert-error { border-color: #da1e28; }
+  .alert-warn  { border-color: #f1c21b; }
+  .alert-ok    { border-color: #198038; }
+  .alert-info  { border-color: #0f62fe; }
+  .alert-icon  { font-size: 15px; flex-shrink: 0; padding-top: 1px; }
+  .alert-title { font-weight: 600; font-size: 13px; }
+  .alert-desc  { font-size: 12px; color: #4a6fa5; margin-top: 2px; }
+
+  /* ── Tables ── */
+  table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #c5dff0; }
+  th { background: #dceefb; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #0a3d6b; text-align: left; padding: 8px 12px; border-bottom: 1px solid #c5dff0; }
+  td { padding: 9px 12px; font-size: 13px; border-bottom: 1px solid #eaf4fc; }
+  tr:last-child td { border-bottom: none; }
+  .mono { font-family: monospace; font-size: 11px; color: #4a6fa5; }
+
+  .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 2px; }
+  .badge-ok   { background: #defbe6; color: #198038; }
+  .badge-warn { background: #fcf4d6; color: #8a6914; }
+  .badge-fail { background: #fff1f1; color: #da1e28; }
+  .badge-info { background: #dceefb; color: #0a3d6b; }
+
+  /* ── Approvals ── */
+  .approval {
+    background: #fff; border: 1px solid #c5dff0; border-left: 3px solid #0f62fe;
+    padding: 14px 16px; margin-bottom: 6px;
+    display: flex; justify-content: space-between; align-items: flex-start;
+  }
+  .approval.approved { border-left-color: #198038; }
+  .approval-name    { font-weight: 600; font-size: 13px; color: #0a1628; }
+  .approval-meta    { font-size: 12px; color: #4a6fa5; margin-top: 3px; }
+  .approval-blocked { font-size: 12px; color: #8a6914; margin-top: 4px; }
+
+  .green  { color: #198038; }
+  .red    { color: #da1e28; }
+  .yellow { color: #8a6914; }
+  .blue   { color: #0f62fe; }
+
+  footer { text-align: center; font-size: 12px; color: #4a6fa5; padding: 16px; border-top: 1px solid #c5dff0; background: #e8f4fd; }
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="topbar">
+  <div class="topbar-logo">Nova<span>Cart</span></div>
+  <div class="topbar-divider"></div>
+  <div class="topbar-name">Pipeline Observability</div>
+  <div class="topbar-ts">Last run: 2026-08-07 13:45:46 UTC &nbsp;·&nbsp; Env: local</div>
+  <div class="search-wrap">
+    <span class="search-icon">⌕</span>
+    <input class="search-input" id="globalSearch" type="text" placeholder="Search alerts, runs, products…" autocomplete="off"/>
+    <div class="search-results" id="searchResults"></div>
+  </div>
+</div>
+
+<div class="shell">
+
+  <!-- Sidebar nav -->
+  <nav class="sidebar">
+    <div class="nav-group-label">Overview</div>
+    <div class="nav-item active" data-page="overview"><span class="nav-icon">▦</span> Dashboard</div>
+
+    <div class="nav-group-label">Pipeline</div>
+    <div class="nav-item" data-page="alerts"><span class="nav-icon">⚠</span> Alerts</div>
+    <div class="nav-item" data-page="validation"><span class="nav-icon">✔</span> Validation</div>
+    <div class="nav-item" data-page="runs"><span class="nav-icon">↻</span> Run History</div>
+
+    <div class="nav-group-label">Governance</div>
+    <div class="nav-item" data-page="approvals"><span class="nav-icon">◈</span> Approvals</div>
+  </nav>
+
+  <div class="main">
+
+    <!-- ══ OVERVIEW ══ -->
+    <div class="section-page active" id="page-overview">
+      <div class="page-title">Dashboard Overview</div>
+      <div class="page-subtitle">Pipeline health at a glance — Nov 07 to Nov 10, 2025</div>
+
+      <div class="cards">
+        <div class="card">
+          <div class="card-label">Last Run</div>
+          <div class="card-value green" style="font-size:18px;font-weight:600;padding-top:6px;">SUCCESS</div>
+          <div class="card-sub">2025-11-10 · 0.32s</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Dates Processed</div>
+          <div class="card-value">4</div>
+          <div class="card-sub">Nov 07 – Nov 10</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Quarantined Rows</div>
+          <div class="card-value red">7</div>
+          <div class="card-sub">orders: 4 · customers: 3</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Pending Approvals</div>
+          <div class="card-value blue">2</div>
+          <div class="card-sub">New products blocked</div>
+        </div>
+      </div>
+
+      <!-- Charts row -->
+      <div class="charts-row">
+        <!-- Bar chart -->
+        <div class="chart-box">
+          <div class="chart-title">Rows Written to Gold — by Date</div>
+          <svg viewBox="0 0 280 160" width="100%" height="160">
+            <line x1="40" y1="10" x2="40" y2="130" stroke="#c5dff0" stroke-width="1"/>
+            <line x1="40" y1="130" x2="270" y2="130" stroke="#c5dff0" stroke-width="1"/>
+            <text x="34" y="14"  text-anchor="end" font-size="9" fill="#4a6fa5">6</text>
+            <text x="34" y="64"  text-anchor="end" font-size="9" fill="#4a6fa5">3</text>
+            <text x="34" y="130" text-anchor="end" font-size="9" fill="#4a6fa5">0</text>
+            <line x1="40" y1="13"  x2="270" y2="13"  stroke="#eaf4fc" stroke-width="1"/>
+            <line x1="40" y1="63"  x2="270" y2="63"  stroke="#eaf4fc" stroke-width="1"/>
+            <rect x="55"  y="70" width="36" height="60" fill="#0f62fe" rx="1"/>
+            <text x="73"  y="148" text-anchor="middle" font-size="9" fill="#4a6fa5">Nov 07</text>
+            <text x="73"  y="65"  text-anchor="middle" font-size="9" fill="#0a1628">3</text>
+            <rect x="113" y="90" width="36" height="40" fill="#0f62fe" rx="1"/>
+            <text x="131" y="148" text-anchor="middle" font-size="9" fill="#4a6fa5">Nov 08</text>
+            <text x="131" y="85"  text-anchor="middle" font-size="9" fill="#0a1628">2</text>
+            <rect x="171" y="90" width="36" height="40" fill="#4fa3e0" rx="1"/>
+            <text x="189" y="148" text-anchor="middle" font-size="9" fill="#4a6fa5">Nov 09</text>
+            <text x="189" y="85"  text-anchor="middle" font-size="9" fill="#0a1628">2</text>
+            <rect x="229" y="90" width="36" height="40" fill="#4fa3e0" rx="1"/>
+            <text x="247" y="148" text-anchor="middle" font-size="9" fill="#4a6fa5">Nov 10</text>
+            <text x="247" y="85"  text-anchor="middle" font-size="9" fill="#0a1628">2</text>
+          </svg>
+        </div>
+
+        <!-- Donut chart -->
+        <div class="chart-box">
+          <div class="chart-title">Quarantine Breakdown</div>
+          <svg viewBox="0 0 280 160" width="100%" height="160">
+            <path d="M140,80 L140,40 A40,40 0 1,1 99,109 Z" fill="#0f62fe" opacity=".85"/>
+            <path d="M140,80 L99,109 A40,40 0 0,1 140,40 Z" fill="#4fa3e0"/>
+            <circle cx="140" cy="80" r="24" fill="#fff"/>
+            <text x="140" y="84" text-anchor="middle" font-size="11" font-weight="600" fill="#0a1628">7</text>
+            <text x="140" y="94" text-anchor="middle" font-size="8" fill="#4a6fa5">total</text>
+            <rect x="196" y="62" width="10" height="10" fill="#0f62fe" opacity=".85" rx="1"/>
+            <text x="210" y="71" font-size="10" fill="#4a6fa5">Orders (4)</text>
+            <rect x="196" y="80" width="10" height="10" fill="#4fa3e0" rx="1"/>
+            <text x="210" y="89" font-size="10" fill="#4a6fa5">Customers (3)</text>
+            <rect x="196" y="98" width="10" height="10" fill="#defbe6" rx="1"/>
+            <text x="210" y="107" font-size="10" fill="#4a6fa5">Products (0)</text>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Sparkline -->
+      <div class="chart-box">
+        <div class="chart-title">Run Duration (seconds) — Last 4 Runs</div>
+        <svg viewBox="0 0 700 110" width="100%" height="110">
+          <line x1="40" y1="10" x2="40" y2="78" stroke="#c5dff0" stroke-width="1"/>
+          <line x1="40" y1="78" x2="680" y2="78" stroke="#c5dff0" stroke-width="1"/>
+          <line x1="40" y1="10" x2="680" y2="10" stroke="#eaf4fc" stroke-width="1" stroke-dasharray="4 3"/>
+          <line x1="40" y1="44" x2="680" y2="44" stroke="#eaf4fc" stroke-width="1" stroke-dasharray="4 3"/>
+          <text x="34" y="13"  text-anchor="end" font-size="9" fill="#4a6fa5">1.5s</text>
+          <text x="34" y="47"  text-anchor="end" font-size="9" fill="#4a6fa5">0.75s</text>
+          <text x="34" y="81"  text-anchor="end" font-size="9" fill="#4a6fa5">0s</text>
+          <polygon points="140,10 300,60 460,65 620,67 620,78 140,78" fill="#dceefb" opacity=".7"/>
+          <polyline points="140,10 300,60 460,65 620,67" fill="none" stroke="#0f62fe" stroke-width="2" stroke-linejoin="round"/>
+          <circle cx="140" cy="10"  r="4" fill="#0f62fe"/>
+          <circle cx="300" cy="60"  r="4" fill="#0f62fe"/>
+          <circle cx="460" cy="65"  r="4" fill="#0f62fe"/>
+          <circle cx="620" cy="67"  r="4" fill="#0f62fe"/>
+          <text x="140" y="95" text-anchor="middle" font-size="9" fill="#4a6fa5">Nov 07</text>
+          <text x="300" y="95" text-anchor="middle" font-size="9" fill="#4a6fa5">Nov 08</text>
+          <text x="460" y="95" text-anchor="middle" font-size="9" fill="#4a6fa5">Nov 09</text>
+          <text x="620" y="95" text-anchor="middle" font-size="9" fill="#4a6fa5">Nov 10</text>
+          <text x="140" y="7"  text-anchor="middle" font-size="9" fill="#0a1628">1.50s</text>
+          <text x="300" y="57" text-anchor="middle" font-size="9" fill="#0a1628">0.35s</text>
+          <text x="460" y="62" text-anchor="middle" font-size="9" fill="#0a1628">0.27s</text>
+          <text x="620" y="64" text-anchor="middle" font-size="9" fill="#0a1628">0.32s</text>
+        </svg>
+      </div>
+
+      <!-- Recent alerts -->
+      <div class="sec">
+        <div class="sec-title">Recent Alerts</div>
+        <div class="alert alert-error">
+          <div class="alert-icon">⚠</div>
+          <div>
+            <div class="alert-title">Schema Drift — orders</div>
+            <div class="alert-desc">Unexpected column <code>discount_code</code> detected. Pipeline continued (additive drift).</div>
+          </div>
+        </div>
+        <div class="alert alert-warn">
+          <div class="alert-icon">⚠</div>
+          <div>
+            <div class="alert-title">High Quarantine Rate — customers (20%)</div>
+            <div class="alert-desc">CUST-005 blocked — <code>invalid_email_format</code>. Watermark was not advanced.</div>
+          </div>
+        </div>
+        <div class="alert alert-ok">
+          <div class="alert-icon">✔</div>
+          <div>
+            <div class="alert-title">Watermark Committed</div>
+            <div class="alert-desc">products_updated_at → 2025-11-05T11:15:00. All stages passed before commit.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ ALERTS ══ -->
+    <div class="section-page" id="page-alerts">
+      <div class="page-title">Alerts</div>
+      <div class="page-subtitle">Live notifications from schema checks, validation thresholds, and watermark events</div>
+
+      <div class="sec">
+        <div class="sec-title">Schema Drift</div>
+        <div class="alert alert-error">
+          <div class="alert-icon">⚠</div>
+          <div>
+            <div class="alert-title">Schema Drift Detected — orders (2025-11-07)</div>
+            <div class="alert-desc">Incoming column <code>discount_code</code> not in expected schema. Pipeline continued but downstream models may be affected. Action: update schema baseline if intentional.</div>
+          </div>
+        </div>
+        <div class="alert alert-info">
+          <div class="alert-icon">ℹ</div>
+          <div>
+            <div class="alert-title">Schema Fingerprint OK — customers</div>
+            <div class="alert-desc">Column set unchanged from last run. Fingerprint a3f9c1d2 matches baseline. No review required.</div>
+          </div>
+        </div>
+        <div class="alert alert-info">
+          <div class="alert-icon">ℹ</div>
+          <div>
+            <div class="alert-title">Schema Fingerprint OK — products</div>
+            <div class="alert-desc">Column set unchanged from last run. No review required.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-title">Validation Thresholds</div>
+        <div class="alert alert-warn">
+          <div class="alert-icon">⚠</div>
+          <div>
+            <div class="alert-title">High Quarantine Rate — customers (20%)</div>
+            <div class="alert-desc">1 of 5 rows failed Silver validation. Threshold: 10%. Reason: <code>invalid_email_format</code> on CUST-005. Watermark held until all stages passed.</div>
+          </div>
+        </div>
+        <div class="alert alert-warn">
+          <div class="alert-icon">⚠</div>
+          <div>
+            <div class="alert-title">Row Rejected — orders (2025-11-07)</div>
+            <div class="alert-desc">ORD-004 quarantined — reason: <code>quantity_must_be_positive</code> (value was 0). Row blocked from Silver and did not reach Gold.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-title">Watermark Events</div>
+        <div class="alert alert-ok">
+          <div class="alert-icon">✔</div>
+          <div>
+            <div class="alert-title">Watermark Committed — 2026-08-07 13:45:46</div>
+            <div class="alert-desc">products_updated_at advanced to 2025-11-05T11:15:00. Committed only after all 9 stages passed. No pending file present.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ VALIDATION ══ -->
+    <div class="section-page" id="page-validation">
+      <div class="page-title">Silver Validation</div>
+      <div class="page-subtitle">Row-level Pydantic checks at the Silver layer — every failing row quarantined with a tagged reason</div>
+
+      <div class="sec">
+        <div class="sec-title">Current Run — 2025-11-10</div>
+        <table>
+          <thead>
+            <tr><th>Source</th><th>Incoming</th><th>Passed</th><th>Quarantined</th><th>Reject Rate</th><th>Reason</th><th>Watermark Safe</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>orders</td><td>2</td><td>2</td><td>0</td><td><span class="badge badge-ok">0%</span></td><td>—</td><td><span class="badge badge-ok">Yes</span></td></tr>
+            <tr><td>customers</td><td>5</td><td>4</td><td>1</td><td><span class="badge badge-warn">20%</span></td><td><span class="mono">invalid_email_format</span></td><td><span class="badge badge-ok">Yes</span></td></tr>
+            <tr><td>products</td><td>4</td><td>4</td><td>0</td><td><span class="badge badge-ok">0%</span></td><td>—</td><td><span class="badge badge-ok">Yes</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="sec">
+        <div class="sec-title">Quarantine Log — All Runs</div>
+        <table>
+          <thead>
+            <tr><th>Source</th><th>Row ID</th><th>Date</th><th>Reason</th><th>Quarantine Path</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>orders</td><td>ORD-004</td><td>2025-11-07</td><td><span class="mono">quantity_must_be_positive</span></td><td><span class="mono">quarantine/orders/dt=2025-11-07/</span></td></tr>
+            <tr><td>customers</td><td>CUST-005</td><td>2025-11-07 – 10</td><td><span class="mono">invalid_email_format</span></td><td><span class="mono">quarantine/customers/dt=…/</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ══ RUN HISTORY ══ -->
+    <div class="section-page" id="page-runs">
+      <div class="page-title">Run History</div>
+      <div class="page-subtitle">Full audit trail — every run tagged with a unique run ID for log correlation</div>
+
+      <div class="sec">
+        <table>
+          <thead>
+            <tr><th>Date</th><th>Status</th><th>Duration</th><th>Schema Drift</th><th>Quarantined</th><th>Run ID</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>2025-11-10</td><td><span class="badge badge-ok">Success</span></td><td>0.32s</td><td>—</td><td>1</td><td><span class="mono">e73d30c1-f33a-4376</span></td></tr>
+            <tr><td>2025-11-09</td><td><span class="badge badge-ok">Success</span></td><td>0.27s</td><td>—</td><td>1</td><td><span class="mono">c56f865f-5d9e-4f90</span></td></tr>
+            <tr><td>2025-11-08</td><td><span class="badge badge-ok">Success</span></td><td>0.35s</td><td>—</td><td>2</td><td><span class="mono">3c690516-aef8-450e</span></td></tr>
+            <tr><td>2025-11-07</td><td><span class="badge badge-ok">Success</span></td><td>1.50s</td><td><span class="badge badge-warn">Additive</span></td><td>2</td><td><span class="mono">1fa3ccbd-d247-48b0</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="sec">
+        <div class="sec-title">Stage Breakdown — 2025-11-07 (slowest run)</div>
+        <table>
+          <thead>
+            <tr><th>Stage</th><th>Layer</th><th>Status</th><th>Detail</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>ingest_orders</td><td>Bronze</td><td><span class="badge badge-ok">OK</span></td><td>5 rows ingested</td></tr>
+            <tr><td>ingest_customers</td><td>Bronze</td><td><span class="badge badge-ok">OK</span></td><td>5 rows ingested</td></tr>
+            <tr><td>ingest_products</td><td>Bronze</td><td><span class="badge badge-ok">OK</span></td><td>4 rows ingested</td></tr>
+            <tr><td>silver_orders</td><td>Silver</td><td><span class="badge badge-warn">Warn</span></td><td>1 quarantined, 1 deduped, 3 passed</td></tr>
+            <tr><td>silver_customers</td><td>Silver</td><td><span class="badge badge-warn">Warn</span></td><td>1 quarantined, 4 passed</td></tr>
+            <tr><td>silver_products</td><td>Silver</td><td><span class="badge badge-ok">OK</span></td><td>4 rows written</td></tr>
+            <tr><td>dim_product</td><td>Gold</td><td><span class="badge badge-ok">OK</span></td><td>SCD1 · 4 rows</td></tr>
+            <tr><td>dim_customer</td><td>Gold</td><td><span class="badge badge-ok">OK</span></td><td>SCD2 · 4 rows</td></tr>
+            <tr><td>fact_orders</td><td>Gold</td><td><span class="badge badge-ok">OK</span></td><td>3 rows written</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ══ APPROVALS ══ -->
+    <div class="section-page" id="page-approvals">
+      <div class="page-title">Product Approvals</div>
+      <div class="page-subtitle">New product integrations are blocked from the Gold layer until a team member approves them</div>
+
+      <div class="sec">
+        <div class="sec-title">Pending</div>
+        <div class="approval">
+          <div>
+            <div class="approval-name">PROD-009 — Wireless Charging Pad</div>
+            <div class="approval-meta">Supplier: SUP-003 · unit_cost: $14.99 · First seen: 2026-08-07</div>
+            <div class="approval-blocked">Blocked from Gold layer until approved</div>
+          </div>
+          <span class="badge badge-warn">Pending</span>
+        </div>
+        <div class="approval">
+          <div>
+            <div class="approval-name">PROD-010 — Ergonomic Desk Mat</div>
+            <div class="approval-meta">Supplier: SUP-007 · unit_cost: $39.99 · First seen: 2026-08-07</div>
+            <div class="approval-blocked">Blocked from Gold layer until approved</div>
+          </div>
+          <span class="badge badge-warn">Pending</span>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="sec-title">Recently Approved</div>
+        <div class="approval approved">
+          <div>
+            <div class="approval-name">PROD-007 — Mechanical Keyboard</div>
+            <div class="approval-meta">Approved by r.lee@novacart.io · 2026-08-06 · Active in dim_product</div>
+          </div>
+          <span class="badge badge-ok">Approved</span>
+        </div>
+        <div class="approval approved">
+          <div>
+            <div class="approval-name">PROD-005 — USB-C Hub</div>
+            <div class="approval-meta">Approved by r.lee@novacart.io · 2026-07-28 · Active in dim_product</div>
+          </div>
+          <span class="badge badge-ok">Approved</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /shell -->
+
+<script>
+  // ── Navigation ──
+  const navItems = document.querySelectorAll('.nav-item[data-page]');
+  const pages    = document.querySelectorAll('.section-page');
+  function showPage(target) {
+    navItems.forEach(n => n.classList.remove('active'));
+    pages.forEach(p => p.classList.remove('active'));
+    const navEl = document.querySelector(`.nav-item[data-page="${target}"]`);
+    if (navEl) navEl.classList.add('active');
+    const pageEl = document.getElementById('page-' + target);
+    if (pageEl) pageEl.classList.add('active');
+  }
+  navItems.forEach(item => item.addEventListener('click', () => showPage(item.dataset.page)));
+
+  // ── Search index ──
+  // Each entry: { page, pageLabel, text }
+  const INDEX = [];
+  document.querySelectorAll('.section-page').forEach(page => {
+    const pageId    = page.id.replace('page-', '');
+    const pageLabel = page.querySelector('.page-title')?.textContent.trim() || pageId;
+
+    // Alerts
+    page.querySelectorAll('.alert').forEach(el => {
+      const title = el.querySelector('.alert-title')?.textContent.trim() || '';
+      const desc  = el.querySelector('.alert-desc')?.textContent.trim()  || '';
+      if (title) INDEX.push({ page: pageId, pageLabel, text: title + ' — ' + desc, el });
+    });
+
+    // Table rows
+    page.querySelectorAll('tbody tr').forEach(row => {
+      const text = Array.from(row.querySelectorAll('td')).map(td => td.textContent.trim()).join(' · ');
+      if (text.trim()) INDEX.push({ page: pageId, pageLabel, text, el: row });
+    });
+
+    // Approval cards
+    page.querySelectorAll('.approval').forEach(el => {
+      const name = el.querySelector('.approval-name')?.textContent.trim() || '';
+      const meta = el.querySelector('.approval-meta')?.textContent.trim()  || '';
+      if (name) INDEX.push({ page: pageId, pageLabel, text: name + ' — ' + meta, el });
+    });
+  });
+
+  function highlight(text, query) {
+    const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return text.replace(new RegExp(`(${escaped})`, 'gi'), '<mark>$1</mark>');
+  }
+
+  const searchInput   = document.getElementById('globalSearch');
+  const searchResults = document.getElementById('searchResults');
+
+  searchInput.addEventListener('input', () => {
+    const q = searchInput.value.trim().toLowerCase();
+    searchResults.innerHTML = '';
+    if (q.length < 2) { searchResults.classList.remove('open'); return; }
+
+    const hits = INDEX.filter(entry => entry.text.toLowerCase().includes(q)).slice(0, 12);
+
+    if (!hits.length) {
+      searchResults.innerHTML = `<div class="sr-empty">No results for "<strong>${q}</strong>"</div>`;
+    } else {
+      hits.forEach(hit => {
+        const div = document.createElement('div');
+        div.className = 'sr-item';
+        div.innerHTML = `<div class="sr-page">${hit.pageLabel}</div>
+                         <div class="sr-text">${highlight(hit.text.slice(0, 120), searchInput.value.trim())}</div>`;
+        div.addEventListener('click', () => {
+          showPage(hit.page);
+          searchResults.classList.remove('open');
+          searchInput.value = '';
+          setTimeout(() => {
+            hit.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            hit.el.style.outline = '2px solid #0f62fe';
+            setTimeout(() => hit.el.style.outline = '', 1800);
+          }, 100);
+        });
+        searchResults.appendChild(div);
+      });
+    }
+    searchResults.classList.add('open');
+  });
+
+  // Close on outside click
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.search-wrap')) searchResults.classList.remove('open');
+  });
+</script>
+</body>
+</html>

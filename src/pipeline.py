@@ -46,16 +46,16 @@ def run_one_date(date_str: str, config: Config) -> dict:
     log_event(logger, "INFO", "pipeline_start", run_id=run_id, date=date_str)
 
     def stage(name: str, fn):
-        t0 = datetime.utcnow()
+        t0 = datetime.now(timezone.utc)
         log_event(logger, "INFO", "stage_start", run_id=run_id, stage=name)
         try:
             fn()
             stages.append({"stage": name, "status": "OK",
-                           "duration_sec": (datetime.utcnow() - t0).total_seconds()})
+                           "duration_sec": (datetime.now(timezone.utc) - t0).total_seconds()})
             log_event(logger, "INFO", "stage_end", run_id=run_id, stage=name, status="OK")
         except Exception as exc:
             stages.append({"stage": name, "status": "FAIL", "error": str(exc),
-                           "duration_sec": (datetime.utcnow() - t0).total_seconds()})
+                           "duration_sec": (datetime.now(timezone.utc) - t0).total_seconds()})
             log_event(logger, "ERROR", "stage_end", run_id=run_id, stage=name,
                       status="FAIL", error=str(exc))
             raise
