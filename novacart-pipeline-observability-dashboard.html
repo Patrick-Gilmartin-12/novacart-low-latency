@@ -5,144 +5,394 @@
 <title>NovaCart Pipeline Dashboard</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* ── IBM Design tokens ───────────────────────────────────────────────── */
+  :root {
+    --ibm-blue-70:  #0043ce;
+    --ibm-blue-60:  #0f62fe;
+    --ibm-blue-10:  #edf5ff;
+    --ibm-gray-100: #161616;
+    --ibm-gray-90:  #262626;
+    --ibm-gray-80:  #393939;
+    --ibm-gray-20:  #e0e0e0;
+    --ibm-gray-10:  #f4f4f4;
+    --ibm-white:    #ffffff;
+    --ibm-green-50: #198038;
+    --ibm-green-10: #defbe6;
+    --ibm-red-60:   #da1e28;
+    --ibm-red-10:   #fff1f1;
+    --ibm-yellow-30:#f1c21b;
+    --ibm-yellow-10:#fcf4d6;
+    --ibm-teal-50:  #007d79;
+    --ibm-teal-10:  #d9fbfb;
+    --ibm-purple-60:#8a3ffc;
+    --ibm-purple-10:#f6f2ff;
+  }
+
   body {
-    font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+    font-family: "IBM Plex Sans", -apple-system, "Segoe UI", system-ui, sans-serif;
     font-size: 14px;
-    line-height: 1.6;
-    background: #f7f8fa;
-    color: #1f2328;
-  }
-  .page { max-width: 820px; margin: 0 auto; padding: 32px 24px 48px; }
-
-  /* Header */
-  .header { margin-bottom: 28px; border-bottom: 1px solid #e5e7eb; padding-bottom: 16px; }
-  .header h1 { font-size: 20px; font-weight: 600; color: #1f2328; }
-  .header p  { font-size: 13px; color: #57606a; margin-top: 2px; }
-
-  /* Stat cards */
-  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px; }
-  .card {
-    background: #fff;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    padding: 16px;
-  }
-  .card .label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #57606a; }
-  .card .value { font-size: 26px; font-weight: 700; margin-top: 4px; color: #1f2328; }
-  .card .sub   { font-size: 12px; color: #57606a; margin-top: 2px; }
-  .card.warn .value { color: #b45309; }
-  .card.ok   .value { color: #166534; }
-
-  /* Section */
-  .section { margin-bottom: 28px; }
-  .section-title {
-    font-size: 13px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: .05em;
-    color: #57606a;
-    margin-bottom: 10px;
+    line-height: 1.5;
+    background: var(--ibm-gray-10);
+    color: var(--ibm-gray-100);
   }
 
-  /* Run history table */
-  table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
-  th { background: #f7f8fa; font-size: 12px; font-weight: 600; color: #57606a; text-align: left; padding: 8px 12px; border-bottom: 1px solid #e5e7eb; }
-  td { padding: 9px 12px; font-size: 13px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
-  tr:last-child td { border-bottom: none; }
-  .badge {
-    display: inline-block;
-    font-size: 11px;
-    font-weight: 600;
-    padding: 2px 8px;
-    border-radius: 999px;
-  }
-  .badge-ok   { background: #dcfce7; color: #166534; }
-  .badge-fail { background: #fee2e2; color: #991b1b; }
-  .run-id     { font-family: monospace; font-size: 11px; color: #57606a; }
-
-  /* Stage grid */
-  .stage-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-  .stage-box {
-    background: #fff;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    padding: 12px 14px;
+  /* ── Top nav bar ─────────────────────────────────────────────────────── */
+  .topbar {
+    background: var(--ibm-gray-90);
+    color: var(--ibm-white);
     display: flex;
     align-items: center;
-    gap: 10px;
+    padding: 0 24px;
+    height: 48px;
+    gap: 16px;
   }
-  .stage-dot {
-    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
-  }
-  .dot-ok   { background: #22c55e; }
-  .dot-fail { background: #ef4444; }
-  .stage-name { font-size: 13px; font-weight: 500; }
-  .stage-time { font-size: 11px; color: #57606a; margin-top: 1px; }
+  .topbar-logo { font-size: 16px; font-weight: 700; letter-spacing: .04em; color: var(--ibm-white); }
+  .topbar-logo span { color: var(--ibm-blue-60); }
+  .topbar-sub  { font-size: 12px; color: var(--ibm-gray-20); border-left: 1px solid #525252; padding-left: 16px; }
+  .topbar-ts   { margin-left: auto; font-size: 12px; color: var(--ibm-gray-20); }
 
-  /* Watermark */
-  .wm-box {
-    background: #fff;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
+  /* ── Layout ──────────────────────────────────────────────────────────── */
+  .page { max-width: 900px; margin: 0 auto; padding: 28px 20px 56px; }
+
+  /* ── Section titles ──────────────────────────────────────────────────── */
+  .section { margin-bottom: 28px; }
+  .section-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: #525252;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--ibm-gray-20);
+  }
+
+  /* ── Stat cards ──────────────────────────────────────────────────────── */
+  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; margin-bottom: 28px; background: var(--ibm-gray-20); border: 1px solid var(--ibm-gray-20); }
+  .card {
+    background: var(--ibm-white);
+    padding: 20px 16px 16px;
+  }
+  .card .label { font-size: 12px; color: #525252; }
+  .card .value { font-size: 28px; font-weight: 300; color: var(--ibm-gray-100); margin-top: 6px; line-height: 1; }
+  .card .sub   { font-size: 11px; color: #6f6f6f; margin-top: 6px; }
+  .card .accent-bar { height: 3px; margin-bottom: 14px; }
+  .bar-blue   { background: var(--ibm-blue-60); }
+  .bar-green  { background: var(--ibm-green-50); }
+  .bar-yellow { background: var(--ibm-yellow-30); }
+  .bar-purple { background: var(--ibm-purple-60); }
+
+  /* ── Alert banner ────────────────────────────────────────────────────── */
+  .alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    margin-bottom: 8px;
+    border-left: 4px solid;
+  }
+  .alert-warn  { background: var(--ibm-yellow-10); border-color: var(--ibm-yellow-30); }
+  .alert-info  { background: var(--ibm-blue-10);   border-color: var(--ibm-blue-60); }
+  .alert-error { background: var(--ibm-red-10);    border-color: var(--ibm-red-60); }
+  .alert-ok    { background: var(--ibm-green-10);  border-color: var(--ibm-green-50); }
+  .alert-icon  { font-size: 16px; line-height: 1.4; flex-shrink: 0; }
+  .alert-body  {}
+  .alert-title { font-weight: 600; font-size: 13px; }
+  .alert-desc  { font-size: 12px; color: #525252; margin-top: 2px; }
+  .alert-meta  { font-size: 11px; color: #6f6f6f; margin-top: 4px; font-family: "IBM Plex Mono", monospace; }
+
+  /* ── Approval card ───────────────────────────────────────────────────── */
+  .approval-card {
+    background: var(--ibm-white);
+    border: 1px solid var(--ibm-gray-20);
+    border-left: 4px solid var(--ibm-purple-60);
+    padding: 16px;
+    margin-bottom: 8px;
+  }
+  .approval-header { display: flex; justify-content: space-between; align-items: flex-start; }
+  .approval-name   { font-weight: 600; font-size: 14px; }
+  .approval-status {
+    font-size: 11px; font-weight: 600; padding: 3px 10px;
+    border-radius: 2px; text-transform: uppercase; letter-spacing: .05em;
+  }
+  .status-pending  { background: var(--ibm-yellow-10); color: #8a6914; border: 1px solid var(--ibm-yellow-30); }
+  .status-approved { background: var(--ibm-green-10);  color: var(--ibm-green-50); border: 1px solid #a7f0ba; }
+  .status-blocked  { background: var(--ibm-red-10);    color: var(--ibm-red-60);   border: 1px solid #ffd7d9; }
+  .approval-meta   { font-size: 12px; color: #525252; margin-top: 6px; }
+  .approval-fields { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .approval-tag {
+    font-size: 11px; padding: 2px 8px; background: var(--ibm-purple-10);
+    color: var(--ibm-purple-60); border-radius: 2px; font-family: "IBM Plex Mono", monospace;
+  }
+
+  /* ── Tables ──────────────────────────────────────────────────────────── */
+  table { width: 100%; border-collapse: collapse; background: var(--ibm-white); border: 1px solid var(--ibm-gray-20); }
+  th {
+    background: var(--ibm-gray-10);
+    font-size: 11px; font-weight: 600; color: #525252;
+    text-align: left; padding: 8px 12px;
+    border-bottom: 1px solid var(--ibm-gray-20);
+    text-transform: uppercase; letter-spacing: .05em;
+  }
+  td { padding: 9px 12px; font-size: 13px; border-bottom: 1px solid #f4f4f4; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  .mono { font-family: "IBM Plex Mono", monospace; font-size: 11px; color: #525252; }
+
+  /* ── Badges ──────────────────────────────────────────────────────────── */
+  .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 2px; text-transform: uppercase; letter-spacing: .04em; }
+  .badge-ok     { background: var(--ibm-green-10); color: var(--ibm-green-50); }
+  .badge-fail   { background: var(--ibm-red-10);   color: var(--ibm-red-60); }
+  .badge-warn   { background: var(--ibm-yellow-10); color: #8a6914; }
+  .badge-info   { background: var(--ibm-blue-10);  color: var(--ibm-blue-70); }
+  .badge-purple { background: var(--ibm-purple-10); color: var(--ibm-purple-60); }
+
+  /* ── Stage grid ──────────────────────────────────────────────────────── */
+  .stage-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; background: var(--ibm-gray-20); border: 1px solid var(--ibm-gray-20); }
+  .stage-box { background: var(--ibm-white); padding: 12px 14px; display: flex; align-items: flex-start; gap: 10px; }
+  .stage-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+  .dot-ok   { background: var(--ibm-green-50); }
+  .dot-fail { background: var(--ibm-red-60); }
+  .dot-warn { background: var(--ibm-yellow-30); }
+  .stage-name { font-size: 13px; font-weight: 500; }
+  .stage-detail { font-size: 11px; color: #6f6f6f; margin-top: 2px; }
+
+  /* ── Quarantine rows ─────────────────────────────────────────────────── */
+  .q-row { background: var(--ibm-white); border: 1px solid var(--ibm-gray-20); padding: 14px 16px; margin-bottom: 2px; }
+  .q-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .q-label  { font-size: 13px; font-weight: 600; }
+  .q-count  { font-size: 13px; font-weight: 600; color: var(--ibm-red-60); }
+  .q-bar-bg { height: 4px; background: var(--ibm-gray-20); }
+  .q-bar-fill { height: 4px; }
+  .q-reasons { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+  .q-reason-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+  .q-reason-text { color: #525252; font-family: "IBM Plex Mono", monospace; }
+  .q-reason-count { font-weight: 600; color: var(--ibm-gray-100); }
+
+  /* ── Watermark ───────────────────────────────────────────────────────── */
+  .wm-row {
+    background: var(--ibm-white);
+    border: 1px solid var(--ibm-gray-20);
     padding: 14px 16px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    margin-bottom: 2px;
   }
-  .wm-key   { font-size: 13px; font-weight: 500; }
-  .wm-value { font-family: monospace; font-size: 13px; color: #3b82d4; }
-  .wm-note  { font-size: 11px; color: #57606a; margin-top: 2px; }
+  .wm-key   { font-size: 13px; font-weight: 600; }
+  .wm-sub   { font-size: 11px; color: #6f6f6f; margin-top: 2px; }
+  .wm-val   { font-family: "IBM Plex Mono", monospace; font-size: 13px; color: var(--ibm-blue-60); text-align: right; }
+  .wm-state { font-size: 11px; margin-top: 3px; text-align: right; }
 
-  /* Quarantine bar */
-  .q-row { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; }
-  .q-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-  .q-label  { font-size: 13px; font-weight: 500; }
-  .q-count  { font-size: 13px; font-weight: 600; color: #b45309; }
-  .q-bar-bg { height: 6px; background: #f0f0f0; border-radius: 3px; }
-  .q-bar-fill { height: 6px; border-radius: 3px; }
-  .q-note { font-size: 11px; color: #57606a; margin-top: 4px; }
-
-  /* Footer */
+  /* ── Footer ──────────────────────────────────────────────────────────── */
   footer {
-    text-align: center;
-    font-size: 12px;
-    color: #57606a;
-    margin-top: 40px;
-    padding-top: 16px;
-    border-top: 1px solid #e5e7eb;
+    text-align: center; font-size: 12px; color: #6f6f6f;
+    margin-top: 40px; padding-top: 16px;
+    border-top: 1px solid var(--ibm-gray-20);
   }
 </style>
 </head>
 <body>
+
+
+<div class="topbar">
+  <div class="topbar-logo">IBM <span>NovaCart</span></div>
+  <div class="topbar-sub">ETL Observability Dashboard</div>
+  <div class="topbar-ts">Last refresh: 2026-08-07 13:45:46 UTC  ·  Env: local  ·  config/pipeline.yaml</div>
+</div>
+
 <div class="page">
 
   
-  <div class="header">
-    <h1>NovaCart ETL — Pipeline Observability Dashboard</h1>
-    <p>Last refreshed: 2026-08-07 13:45:46 UTC  ·  Environment: local  ·  Config: config/pipeline.yaml</p>
+  <div class="cards">
+    <div class="card">
+      <div class="accent-bar bar-green"></div>
+      <div class="label">Last Run</div>
+      <div class="value" style="color:var(--ibm-green-50);font-size:22px;font-weight:600">SUCCESS</div>
+      <div class="sub">2025-11-10  ·  0.32s</div>
+    </div>
+    <div class="card">
+      <div class="accent-bar bar-blue"></div>
+      <div class="label">Dates Processed</div>
+      <div class="value">4</div>
+      <div class="sub">Nov 07 – Nov 10 (backfill)</div>
+    </div>
+    <div class="card">
+      <div class="accent-bar bar-yellow"></div>
+      <div class="label">Quarantined Files</div>
+      <div class="value" style="color:var(--ibm-red-60)">7</div>
+      <div class="sub">orders: 4  ·  customers: 3</div>
+    </div>
+    <div class="card">
+      <div class="accent-bar bar-purple"></div>
+      <div class="label">Pending Approvals</div>
+      <div class="value" style="color:var(--ibm-purple-60)">2</div>
+      <div class="sub">New product integrations</div>
+    </div>
   </div>
 
   
-  <div class="cards">
-    <div class="card ok">
-      <div class="label">Last Run Status</div>
-      <div class="value">✓ OK</div>
-      <div class="sub">2025-11-10 · 0.32s</div>
+  <div class="section">
+    <div class="section-title">Live Alerts</div>
+
+    <div class="alert alert-error">
+      <div class="alert-icon">⬡</div>
+      <div class="alert-body">
+        <div class="alert-title">Schema Drift Detected — orders</div>
+        <div class="alert-desc">Incoming column <code>discount_code</code> not in expected schema. Pipeline continued (additive drift) but downstream models may be affected.</div>
+        <div class="alert-meta">Detected: 2026-08-07 13:45:43  ·  Source: data/landing/orders/orders_2025-11-07.csv  ·  run_id: 1fa3ccbd-d247-48b0-ae07-c47e488a3f04</div>
+      </div>
     </div>
-    <div class="card">
-      <div class="label">Dates Processed</div>
-      <div class="value">4</div>
-      <div class="sub">Nov 07 – Nov 10</div>
+
+    <div class="alert alert-warn">
+      <div class="alert-icon">▲</div>
+      <div class="alert-body">
+        <div class="alert-title">Silver Validation — High Quarantine Rate — customers</div>
+        <div class="alert-desc">20% of incoming customer rows failed Silver-layer validation this run. Threshold is 10%. Rows quarantined with tagged reason: <code>invalid_email_format</code>.</div>
+        <div class="alert-meta">Affected rows: CUST-005 (eve-at-example.com)  ·  Watermark unaffected — two-phase commit held</div>
+      </div>
     </div>
-    <div class="card warn">
-      <div class="label">Quarantined Files</div>
-      <div class="value">7</div>
-      <div class="sub">orders: 4 · customers: 3</div>
+
+    <div class="alert alert-warn">
+      <div class="alert-icon">▲</div>
+      <div class="alert-body">
+        <div class="alert-title">Silver Validation — Rejected Rows — orders (2025-11-07)</div>
+        <div class="alert-desc">1 order row quarantined with reason <code>quantity_must_be_positive</code>. Row ORD-004 had quantity=0 and was blocked from reaching Gold.</div>
+        <div class="alert-meta">Quarantine path: data/quarantine/orders/dt=2025-11-07/orders_bad.parquet  ·  Watermark: safe</div>
+      </div>
     </div>
-    <div class="card">
-      <div class="label">Products Watermark</div>
-      <div class="value" style="font-size:14px;padding-top:6px">2025-11-05</div>
-      <div class="sub">T11:15:00 (committed)</div>
+
+    <div class="alert alert-ok">
+      <div class="alert-icon">✔</div>
+      <div class="alert-body">
+        <div class="alert-title">Watermark Committed Successfully</div>
+        <div class="alert-desc">products_updated_at advanced to 2025-11-05T11:15:00 after all 9 stages passed. No pending watermark file present.</div>
+        <div class="alert-meta">Committed: 2026-08-07 13:45:46  ·  Previous: 2025-11-01T09:00:00</div>
+      </div>
+    </div>
+
+    <div class="alert alert-info">
+      <div class="alert-icon">ℹ</div>
+      <div class="alert-body">
+        <div class="alert-title">Schema Fingerprint Updated — customers</div>
+        <div class="alert-desc">Column set unchanged from last run. Fingerprint matches stored baseline. No human review required.</div>
+        <div class="alert-meta">Fingerprint: a3f9c1d2  ·  Recorded: 2026-08-07 13:45:44</div>
+      </div>
+    </div>
+  </div>
+
+  
+  <div class="section">
+    <div class="section-title">Human-in-the-Loop — New Product Integrations</div>
+
+    <div class="approval-card">
+      <div class="approval-header">
+        <div class="approval-name">PROD-009 — Wireless Charging Pad (supplier: SUP-003)</div>
+        <div class="approval-status status-pending">Awaiting Approval</div>
+      </div>
+      <div class="approval-meta">First seen: 2026-08-07  ·  Source: products.db  ·  updated_at: 2025-11-05T09:30:00  ·  unit_cost: $14.99</div>
+      <div class="approval-fields">
+        <span class="approval-tag">new_product_id</span>
+        <span class="approval-tag">new_supplier</span>
+        <span class="approval-tag">category: electronics</span>
+      </div>
+      <div class="approval-meta" style="margin-top:10px;color:#8a6914">
+        ⚠ Blocked from production Gold layer until a team member approves this integration.
+      </div>
+    </div>
+
+    <div class="approval-card">
+      <div class="approval-header">
+        <div class="approval-name">PROD-010 — Ergonomic Desk Mat (supplier: SUP-007)</div>
+        <div class="approval-status status-pending">Awaiting Approval</div>
+      </div>
+      <div class="approval-meta">First seen: 2026-08-07  ·  Source: products.db  ·  updated_at: 2025-11-05T11:15:00  ·  unit_cost: $39.99</div>
+      <div class="approval-fields">
+        <span class="approval-tag">new_product_id</span>
+        <span class="approval-tag">new_supplier</span>
+        <span class="approval-tag">category: office</span>
+      </div>
+      <div class="approval-meta" style="margin-top:10px;color:#8a6914">
+        ⚠ Blocked from production Gold layer until a team member approves this integration.
+      </div>
+    </div>
+
+    <div class="approval-card" style="border-left-color:var(--ibm-green-50)">
+      <div class="approval-header">
+        <div class="approval-name">PROD-007 — Mechanical Keyboard (supplier: SUP-002)</div>
+        <div class="approval-status status-approved">Approved</div>
+      </div>
+      <div class="approval-meta">Approved by: r.lee@novacart.io  ·  2026-08-06 10:14  ·  Now active in dim_product</div>
+      <div class="approval-fields">
+        <span class="approval-tag">product_id</span>
+        <span class="approval-tag">category: electronics</span>
+      </div>
+    </div>
+  </div>
+
+  
+  <div class="section">
+    <div class="section-title">Silver-Layer Validation — Current Run (2025-11-10)</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Source</th>
+          <th>Incoming</th>
+          <th>Passed</th>
+          <th>Quarantined</th>
+          <th>Rejection Rate</th>
+          <th>Tagged Reason</th>
+          <th>Watermark Safe?</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>orders</strong></td>
+          <td>2</td>
+          <td>2</td>
+          <td>0</td>
+          <td><span class="badge badge-ok">0%</span></td>
+          <td>—</td>
+          <td><span class="badge badge-ok">Yes</span></td>
+        </tr>
+        <tr>
+          <td><strong>customers</strong></td>
+          <td>5</td>
+          <td>4</td>
+          <td>1</td>
+          <td><span class="badge badge-warn">20%</span></td>
+          <td><span class="mono">invalid_email_format</span></td>
+          <td><span class="badge badge-ok">Yes</span></td>
+        </tr>
+        <tr>
+          <td><strong>products</strong></td>
+          <td>4</td>
+          <td>4</td>
+          <td>0</td>
+          <td><span class="badge badge-ok">0%</span></td>
+          <td>—</td>
+          <td><span class="badge badge-ok">Yes</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  
+  <div class="section">
+    <div class="section-title">Stage Health — Latest Run (2025-11-10 · run_id: e73d30c1-f33a-4376-a188-b0ed110906ea)</div>
+    <div class="stage-grid">
+      <div class="stage-box"><div class="stage-dot dot-ok"></div><div><div class="stage-name">ingest_orders</div><div class="stage-detail">Bronze · 2 rows · schema OK</div></div></div>
+      <div class="stage-box"><div class="stage-dot dot-ok"></div><div><div class="stage-name">ingest_customers</div><div class="stage-detail">Bronze · 5 rows · schema OK</div></div></div>
+      <div class="stage-box"><div class="stage-dot dot-ok"></div><div><div class="stage-name">ingest_products</div><div class="stage-detail">Bronze · no new rows</div></div></div>
+      <div class="stage-box"><div class="stage-dot dot-ok"></div><div><div class="stage-name">silver_orders</div><div class="stage-detail">Silver · 2 rows · 0 quarantined</div></div></div>
+      <div class="stage-box"><div class="stage-dot dot-warn"></div><div><div class="stage-name">silver_customers</div><div class="stage-detail">Silver · 4 rows · 1 quarantined</div></div></div>
+      <div class="stage-box"><div class="stage-dot dot-ok"></div><div><div class="stage-name">silver_products</div><div class="stage-detail">Silver · 4 rows · 0 quarantined</div></div></div>
+      <div class="stage-box"><div class="stage-dot dot-ok"></div><div><div class="stage-name">dim_date</div><div class="stage-detail">Gold · 1,096 calendar rows</div></div></div>
+      <div class="stage-box"><div class="stage-dot dot-ok"></div><div><div class="stage-name">dim_product</div><div class="stage-detail">Gold · SCD1 · 4 rows</div></div></div>
+      <div class="stage-box"><div class="stage-dot dot-ok"></div><div><div class="stage-name">dim_customer</div><div class="stage-detail">Gold · SCD2 · 4 rows</div></div></div>
+      <div class="stage-box"><div class="stage-dot dot-ok"></div><div><div class="stage-name">fact_orders</div><div class="stage-detail">Gold · 2 rows written</div></div></div>
+      <div class="stage-box"><div class="stage-dot dot-ok"></div><div><div class="stage-name">gold_health_check</div><div class="stage-detail">All assertions passed</div></div></div>
+      <div class="stage-box"><div class="stage-dot dot-ok"></div><div><div class="stage-name">watermark_commit</div><div class="stage-detail">products_updated_at committed</div></div></div>
     </div>
   </div>
 
@@ -151,42 +401,40 @@
     <div class="section-title">Run History — Last 4 Runs</div>
     <table>
       <thead>
-        <tr>
-          <th>Date</th>
-          <th>Status</th>
-          <th>Duration</th>
-          <th>Run ID</th>
-          <th>Started At</th>
-        </tr>
+        <tr><th>Date</th><th>Status</th><th>Duration</th><th>Schema Drift</th><th>Quarantine</th><th>Run ID</th></tr>
       </thead>
       <tbody>
         <tr>
           <td><strong>2025-11-10</strong></td>
           <td><span class="badge badge-ok">SUCCESS</span></td>
           <td>0.32s</td>
-          <td><span class="run-id">e73d30c1-f33a-4376-a188-b0ed110906ea</span></td>
-          <td style="color:#57606a;font-size:12px">2026-08-07 13:45:46</td>
+          <td><span class="badge badge-ok">None</span></td>
+          <td>customers: 1</td>
+          <td><span class="mono">e73d30c1-f33a-4376-a188-b0ed110906ea</span></td>
         </tr>
         <tr>
           <td><strong>2025-11-09</strong></td>
           <td><span class="badge badge-ok">SUCCESS</span></td>
           <td>0.27s</td>
-          <td><span class="run-id">c56f865f-5d9e-4f90-b464-2693f169051e</span></td>
-          <td style="color:#57606a;font-size:12px">2026-08-07 13:45:45</td>
+          <td><span class="badge badge-ok">None</span></td>
+          <td>customers: 1</td>
+          <td><span class="mono">c56f865f-5d9e-4f90-b464-2693f169051e</span></td>
         </tr>
         <tr>
           <td><strong>2025-11-08</strong></td>
           <td><span class="badge badge-ok">SUCCESS</span></td>
           <td>0.35s</td>
-          <td><span class="run-id">3c690516-aef8-450e-a1d1-307c322759e5</span></td>
-          <td style="color:#57606a;font-size:12px">2026-08-07 13:45:45</td>
+          <td><span class="badge badge-ok">None</span></td>
+          <td>orders: 1, customers: 1</td>
+          <td><span class="mono">3c690516-aef8-450e-a1d1-307c322759e5</span></td>
         </tr>
         <tr>
           <td><strong>2025-11-07</strong></td>
           <td><span class="badge badge-ok">SUCCESS</span></td>
           <td>1.50s</td>
-          <td><span class="run-id">1fa3ccbd-d247-48b0-ae07-c47e488a3f04</span></td>
-          <td style="color:#57606a;font-size:12px">2026-08-07 13:45:43</td>
+          <td><span class="badge badge-warn">additive drift</span></td>
+          <td>orders: 1, customers: 1</td>
+          <td><span class="mono">1fa3ccbd-d247-48b0-ae07-c47e488a3f04</span></td>
         </tr>
       </tbody>
     </table>
@@ -194,139 +442,65 @@
 
   
   <div class="section">
-    <div class="section-title">Stage Health — Latest Run (2025-11-10)</div>
-    <div class="stage-grid">
-      <div class="stage-box">
-        <div class="stage-dot dot-ok"></div>
-        <div>
-          <div class="stage-name">ingest_orders</div>
-          <div class="stage-time">Bronze · 2 rows ingested</div>
-        </div>
-      </div>
-      <div class="stage-box">
-        <div class="stage-dot dot-ok"></div>
-        <div>
-          <div class="stage-name">ingest_customers</div>
-          <div class="stage-time">Bronze · 5 rows ingested</div>
-        </div>
-      </div>
-      <div class="stage-box">
-        <div class="stage-dot dot-ok"></div>
-        <div>
-          <div class="stage-name">ingest_products</div>
-          <div class="stage-time">Bronze · no new rows</div>
-        </div>
-      </div>
-      <div class="stage-box">
-        <div class="stage-dot dot-ok"></div>
-        <div>
-          <div class="stage-name">silver_orders</div>
-          <div class="stage-time">Silver · 2 rows written</div>
-        </div>
-      </div>
-      <div class="stage-box">
-        <div class="stage-dot dot-ok"></div>
-        <div>
-          <div class="stage-name">silver_customers</div>
-          <div class="stage-time">Silver · 4 rows · 1 quarantined</div>
-        </div>
-      </div>
-      <div class="stage-box">
-        <div class="stage-dot dot-ok"></div>
-        <div>
-          <div class="stage-name">silver_products</div>
-          <div class="stage-time">Silver · 4 rows written</div>
-        </div>
-      </div>
-      <div class="stage-box">
-        <div class="stage-dot dot-ok"></div>
-        <div>
-          <div class="stage-name">dim_product</div>
-          <div class="stage-time">Gold · SCD1 · 4 rows</div>
-        </div>
-      </div>
-      <div class="stage-box">
-        <div class="stage-dot dot-ok"></div>
-        <div>
-          <div class="stage-name">dim_customer</div>
-          <div class="stage-time">Gold · SCD2 · 4 rows</div>
-        </div>
-      </div>
-      <div class="stage-box">
-        <div class="stage-dot dot-ok"></div>
-        <div>
-          <div class="stage-name">fact_orders</div>
-          <div class="stage-time">Gold · 2 rows written</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  
-  <div class="section">
     <div class="section-title">Watermarks</div>
-    <div class="wm-box">
+    <div class="wm-row">
       <div>
         <div class="wm-key">products_updated_at</div>
-        <div class="wm-note">Committed after full pipeline success · pending file: none</div>
+        <div class="wm-sub">Two-phase commit · pending file: none · last advanced: 2026-08-07 13:45:46</div>
       </div>
-      <div style="text-align:right">
-        <div class="wm-value">2025-11-05T11:15:00</div>
-        <div class="wm-note" style="color:#166534">✓ Safe — two-phase commit</div>
+      <div>
+        <div class="wm-val">2025-11-05T11:15:00</div>
+        <div class="wm-state" style="color:var(--ibm-green-50)">✔ Committed — safe to re-run</div>
       </div>
     </div>
   </div>
 
   
   <div class="section">
-    <div class="section-title">Quarantine Summary</div>
+    <div class="section-title">Quarantine Summary — All Runs</div>
 
     <div class="q-row">
       <div class="q-header">
         <span class="q-label">orders</span>
-        <span class="q-count">4 file(s)</span>
+        <span class="q-count">4 file(s) — 4 rows total</span>
       </div>
-      <div class="q-bar-bg"><div class="q-bar-fill" style="width:57%;background:#f59e0b"></div></div>
-      <div class="q-note">Cause: ORD-004 quantity=0 fails validation · appears in every run of 2025-11-07</div>
+      <div class="q-bar-bg"><div class="q-bar-fill" style="width:57%;background:var(--ibm-yellow-30)"></div></div>
+      <div class="q-reasons">
+        <div class="q-reason-row">
+          <span class="q-reason-text">quantity_must_be_positive (ORD-004, qty=0)</span>
+          <span class="q-reason-count">4 rows</span>
+        </div>
+      </div>
     </div>
 
     <div class="q-row">
       <div class="q-header">
         <span class="q-label">customers</span>
-        <span class="q-count">3 file(s)</span>
+        <span class="q-count">3 file(s) — 3 rows total</span>
       </div>
-      <div class="q-bar-bg"><div class="q-bar-fill" style="width:43%;background:#f59e0b"></div></div>
-      <div class="q-note">Cause: CUST-005 invalid email "eve-at-example.com" · appears on every run</div>
+      <div class="q-bar-bg"><div class="q-bar-fill" style="width:43%;background:var(--ibm-yellow-30)"></div></div>
+      <div class="q-reasons">
+        <div class="q-reason-row">
+          <span class="q-reason-text">invalid_email_format (CUST-005, eve-at-example.com)</span>
+          <span class="q-reason-count">3 rows</span>
+        </div>
+      </div>
     </div>
 
     <div class="q-row">
       <div class="q-header">
         <span class="q-label">products</span>
-        <span class="q-count">0 file(s)</span>
+        <span class="q-count" style="color:var(--ibm-green-50)">0 file(s)</span>
       </div>
-      <div class="q-bar-bg"><div class="q-bar-fill" style="width:0%;background:#22c55e"></div></div>
-      <div class="q-note">No quarantine issues detected</div>
+      <div class="q-bar-bg"><div class="q-bar-fill" style="width:0%"></div></div>
+      <div class="q-reasons">
+        <div class="q-reason-row"><span class="q-reason-text" style="color:var(--ibm-green-50)">No quarantine issues detected</span><span></span></div>
+      </div>
     </div>
   </div>
 
-  
-  <div class="section">
-    <div class="section-title">Output Files — 2025-11-10</div>
-    <table>
-      <thead>
-        <tr><th>Layer</th><th>Path</th><th>Status</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>Bronze</td><td style="font-family:monospace;font-size:12px">data/bronze/orders/date=2025-11-10/data.parquet</td><td><span class="badge badge-ok">✓ exists</span></td></tr>
-        <tr><td>Silver</td><td style="font-family:monospace;font-size:12px">data/silver/orders/date=2025-11-10/data.parquet</td><td><span class="badge badge-ok">✓ exists</span></td></tr>
-        <tr><td>Gold</td><td style="font-family:monospace;font-size:12px">data/gold/fact_orders/date=2025-11-10/data.parquet</td><td><span class="badge badge-ok">✓ exists</span></td></tr>
-        <tr><td>Gold</td><td style="font-family:monospace;font-size:12px">data/gold/dim_product.parquet</td><td><span class="badge badge-ok">✓ exists</span></td></tr>
-        <tr><td>Gold</td><td style="font-family:monospace;font-size:12px">data/gold/dim_customer.parquet</td><td><span class="badge badge-ok">✓ exists</span></td></tr>
-      </tbody>
-    </table>
-  </div>
-
 </div>
+
 <footer>Made with IBM Bob</footer>
 </body>
 </html>
