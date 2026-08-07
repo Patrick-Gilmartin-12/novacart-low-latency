@@ -39,7 +39,7 @@ def ingest_products(
         df = pd.read_sql_query(
             "SELECT * FROM products WHERE updated_at > ? ORDER BY updated_at",
             conn,
-            params=(watermark,),
+            params=[watermark],
         )
     finally:
         conn.close()
